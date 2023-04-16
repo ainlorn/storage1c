@@ -7,6 +7,6 @@ import jakarta.validation.ConstraintValidatorContext;
 public class AsciiStringValidator implements ConstraintValidator<AsciiString, String> {
     @Override
     public boolean isValid(String value, ConstraintValidatorContext context) {
-        return value.chars().allMatch(c -> c < 128);
+        return value == null || value.chars().allMatch(c -> c < 128);
     }
 }
