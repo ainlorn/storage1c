@@ -1,0 +1,94 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2023-02-14_18-40_initial
+      author: ainlorn
+      changes:
+        - createTable:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: user_roles_name_key
+                    nullable: false
+        - insert:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 0
+              - column:
+                  name: name
+                  value: 'USER'
+        - insert:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: 'ADMIN'
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: varchar(63)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: users_username_key
+                    nullable: false
+              - column:
+                  name: email
+                  type: varchar(255)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: users_email_key
+                    nullable: false
+              - column:
+                  name: password
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: full_name
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role
+                  type: bigint
+                  defaultValueNumeric: 1
+                  constraints:
+                    referencedTableName: user_roles
+                    referencedColumnNames: id
+                    foreignKeyName: users_role__user_roles_id__fk
+                    nullable: false
+              - column:
+                  name: created_on
+                  type: 'timestamp with time zone'
+                  defaultValueComputed: "CURRENT_TIMESTAMP"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
