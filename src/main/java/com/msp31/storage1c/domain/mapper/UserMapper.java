@@ -21,7 +21,7 @@ public class UserMapper {
         return new UserModel(
                 dto.getUsername(),
                 dto.getFullName(),
-                dto.getEmail(),
+                dto.getEmail().toLowerCase(),
                 passwordEncoder.encode(dto.getPassword()),
                 0,
                 true
