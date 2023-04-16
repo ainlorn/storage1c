@@ -2,6 +2,7 @@ package com.msp31.storage1c.service.impl;
 
 import com.msp31.storage1c.adapter.repository.UserRepository;
 import com.msp31.storage1c.common.exception.EmailInUseException;
+import com.msp31.storage1c.common.exception.UserNotFoundException;
 import com.msp31.storage1c.common.exception.UsernameInUseException;
 import com.msp31.storage1c.domain.dto.request.UserRegistrationRequest;
 import com.msp31.storage1c.domain.dto.response.UserInfoResponse;
@@ -35,5 +36,14 @@ public class UserAccountServiceImpl implements UserAccountService {
         User user = User.createFromModel(model);
         user = userRepository.save(user);
         return userMapper.createUserInfoResponseFrom(user);
+    }
+
+    @Override
+    public UserInfoResponse getUserInfo(String username) {
+        var user = userRepository.getByUsername(username);
+        if (user.isEmpty())
+            throw new UserNotFoundException();
+
+        return userMapper.createUserInfoResponseFrom(user.get());
     }
 }

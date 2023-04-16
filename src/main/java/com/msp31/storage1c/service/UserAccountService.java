@@ -5,4 +5,6 @@ import com.msp31.storage1c.domain.dto.response.UserInfoResponse;
 
 public interface UserAccountService {
     UserInfoResponse registerUser(UserRegistrationRequest request);
+
+    UserInfoResponse getUserInfo(String username);
 }
