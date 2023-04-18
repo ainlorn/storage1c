@@ -8,6 +8,7 @@ import com.msp31.storage1c.domain.dto.response.ResponseModel;
 import com.msp31.storage1c.domain.dto.response.UserInfoResponse;
 import com.msp31.storage1c.service.UserAccountService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -21,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +39,7 @@ public class UserAccountController {
 
     UserAccountService userAccountService;
     AuthenticationManager authenticationManager;
+    RememberMeServices rememberMeServices;
 
     @PostMapping("/user/register")
     public ResponseModel<UserInfoResponse> registerAccount(@Valid @RequestBody UserRegistrationRequest request) {
@@ -45,7 +48,8 @@ public class UserAccountController {
 
     @PostMapping("/user/login")
     public ResponseEntity<ResponseModel<Object>> login(
-            @Valid @RequestBody UserAuthenticationRequest authRequest, HttpServletRequest request) {
+            @Valid @RequestBody UserAuthenticationRequest authRequest, HttpServletRequest request,
+            HttpServletResponse response) {
         UsernamePasswordAuthenticationToken token =
                 new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword());
         token.setDetails(new WebAuthenticationDetails(request));
@@ -54,9 +58,10 @@ public class UserAccountController {
             Authentication auth = authenticationManager.authenticate(token);
             SecurityContext securityContext = SecurityContextHolder.getContext();
             securityContext.setAuthentication(auth);
-            if (auth.isAuthenticated()) {
+            if (auth != null && auth.isAuthenticated()) {
                 HttpSession session = request.getSession(true);
                 session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
+                rememberMeServices.loginSuccess(request, response, auth);
             } else {
                 throw new BadCredentialsException(null);
             }
@@ -73,8 +78,9 @@ public class UserAccountController {
     }
 
     @GetMapping("/user/logout")
-    public ResponseModel<Object> logout() {
+    public ResponseModel<Object> logout(HttpServletRequest request, HttpServletResponse response) {
         SecurityContextHolder.getContext().setAuthentication(null);
+        rememberMeServices.loginFail(request, response);
         return ResponseModel.ok(null);
     }
 
