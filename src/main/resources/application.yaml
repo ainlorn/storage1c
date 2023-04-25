@@ -23,3 +23,5 @@ spring:
 storage1c:
   security:
     remember-me-key: ${REMEMBER_ME_KEY:15bd8d60-e818-4ecf-8cbf-c29bdc73189b}
+  git:
+    root: ${GIT_ROOT_PATH:/opt/repos/}
