@@ -1,0 +1,202 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2023-04-25_20-15_repos
+      author: ainlorn
+      changes:
+        - createTable:
+            tableName: repository_access_levels
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: can_view
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: can_commit
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: can_manage
+                  type: boolean
+                  constraints:
+                    nullable: false
+        - insert:
+            tableName: repository_access_levels
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 0
+              - column:
+                  name: name
+                  value: 'NO_ACCESS'
+              - column:
+                  name: can_view
+                  valueBoolean: false
+              - column:
+                  name: can_commit
+                  valueBoolean: false
+              - column:
+                  name: can_manage
+                  valueBoolean: false
+        - insert:
+            tableName: repository_access_levels
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: 'VIEWER'
+              - column:
+                  name: can_view
+                  valueBoolean: true
+              - column:
+                  name: can_commit
+                  valueBoolean: false
+              - column:
+                  name: can_manage
+                  valueBoolean: false
+        - insert:
+            tableName: repository_access_levels
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 2
+              - column:
+                  name: name
+                  value: 'CONTRIBUTOR'
+              - column:
+                  name: can_view
+                  valueBoolean: true
+              - column:
+                  name: can_commit
+                  valueBoolean: true
+              - column:
+                  name: can_manage
+                  valueBoolean: false
+        - insert:
+            tableName: repository_access_levels
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 3
+              - column:
+                  name: name
+                  value: 'MANAGER'
+              - column:
+                  name: can_view
+                  valueBoolean: true
+              - column:
+                  name: can_commit
+                  valueBoolean: true
+              - column:
+                  name: can_manage
+                  valueBoolean: true
+        - createTable:
+            tableName: repositories
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: directory_name
+                  type: varchar(255)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: repositories_dir_name_key
+              - column:
+                  name: owner_user
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: users
+                    referencedColumnNames: id
+                    foreignKeyName: repositories_owner_user__user_id__fk
+              - column:
+                  name: default_access_level
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+                    referencedTableName: repository_access_levels
+                    referencedColumnNames: id
+                    foreignKeyName: repositories_default_access_level__repository_access_levels_id__fk
+              - column:
+                  name: created_on
+                  type: 'timestamp with time zone'
+                  defaultValueComputed: "CURRENT_TIMESTAMP"
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: repositories_owner_user_name_key
+            tableName: repositories
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: owner_user
+              - column:
+                  name: name
+        - createTable:
+            tableName: repository_users
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: repo_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repositories
+                    referencedColumnNames: id
+                    foreignKeyName: repository_users_repo_id__repositories_id__fk
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: users
+                    referencedColumnNames: id
+                    foreignKeyName: repository_users_user_id__users_id__fk
+              - column:
+                  name: access_level
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repository_access_levels
+                    referencedColumnNames: id
+                    foreignKeyName: repository_users_access_level__repository_access_levels_id__fk
+        - createIndex:
+            indexName: repository_users_repo_id_user_id_key
+            tableName: repository_users
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: repo_id
+              - column:
+                  name: user_id
