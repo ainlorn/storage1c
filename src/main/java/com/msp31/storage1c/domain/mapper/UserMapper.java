@@ -1,7 +1,8 @@
 package com.msp31.storage1c.domain.mapper;
 
 import com.msp31.storage1c.domain.dto.request.UserRegistrationRequest;
-import com.msp31.storage1c.domain.dto.response.UserInfoResponse;
+import com.msp31.storage1c.domain.dto.response.PublicUserInfo;
+import com.msp31.storage1c.domain.dto.response.UserInfo;
 import com.msp31.storage1c.domain.entity.account.User;
 import com.msp31.storage1c.domain.entity.account.model.UserModel;
 import lombok.AccessLevel;
@@ -28,8 +29,8 @@ public class UserMapper {
         );
     }
 
-    public UserInfoResponse createUserInfoResponseFrom(User user) {
-        return new UserInfoResponse(
+    public UserInfo createUserInfoFrom(User user) {
+        return new UserInfo(
                 user.getId(),
                 user.getUsername(),
                 user.getFullName(),
@@ -37,6 +38,14 @@ public class UserMapper {
                 user.getRole(),
                 user.getCreatedOn(),
                 user.getEnabled()
+        );
+    }
+
+    public PublicUserInfo createPublicUserInfoFrom(User user) {
+        return new PublicUserInfo(
+                user.getUsername(),
+                user.getFullName(),
+                user.getCreatedOn()
         );
     }
 }

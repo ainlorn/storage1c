@@ -21,7 +21,11 @@ public enum Status {
     EMAIL_IN_USE(100, 400, "Адрес электронной почты уже используется"),
     USERNAME_IN_USE(101, 400, "Имя пользователя уже используется"),
     WRONG_CREDENTIALS(102, 400, "Неправильный логин или пароль"),
-    USER_NOT_FOUND(103, 404, "Пользователь не найден");
+    USER_NOT_FOUND(103, 404, "Пользователь не найден"),
+
+    // repository
+    REPOSITORY_NAME_IN_USE(200, 400, "Имя репозитория уже используется"),
+    REPOSITORY_NOT_FOUND(201, 404, "Репозиторий не найден");
 
     int code;
     int httpCode;

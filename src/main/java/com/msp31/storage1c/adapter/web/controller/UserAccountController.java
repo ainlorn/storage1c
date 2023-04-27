@@ -5,7 +5,7 @@ import com.msp31.storage1c.common.constant.Status;
 import com.msp31.storage1c.domain.dto.request.UserAuthenticationRequest;
 import com.msp31.storage1c.domain.dto.request.UserRegistrationRequest;
 import com.msp31.storage1c.domain.dto.response.ResponseModel;
-import com.msp31.storage1c.domain.dto.response.UserInfoResponse;
+import com.msp31.storage1c.domain.dto.response.UserInfo;
 import com.msp31.storage1c.service.UserAccountService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,7 +15,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,8 +26,6 @@ import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import java.security.Principal;
 
 import static com.msp31.storage1c.domain.dto.response.ResponseModel.ok;
 
@@ -42,7 +39,7 @@ public class UserAccountController {
     RememberMeServices rememberMeServices;
 
     @PostMapping("/user/register")
-    public ResponseModel<UserInfoResponse> registerAccount(@Valid @RequestBody UserRegistrationRequest request) {
+    public ResponseModel<UserInfo> registerAccount(@Valid @RequestBody UserRegistrationRequest request) {
         return ok(userAccountService.registerUser(request));
     }
 
@@ -74,7 +71,7 @@ public class UserAccountController {
                     .body(ResponseModel.withStatus(status, null));
         }
 
-        return ResponseEntity.ok(ResponseModel.ok(userAccountService.getUserInfo(authRequest.getUsername())));
+        return ResponseEntity.ok(ResponseModel.ok(userAccountService.getCurrentUserInfo()));
     }
 
     @GetMapping("/user/logout")
@@ -84,9 +81,8 @@ public class UserAccountController {
         return ResponseModel.ok(null);
     }
 
-    @PreAuthorize("isAuthenticated()")
     @GetMapping("/user/me")
-    public ResponseModel<UserInfoResponse> getCurrentUserInfo(Principal principal) {
-        return ResponseModel.ok(userAccountService.getUserInfo(principal.getName()));
+    public ResponseModel<UserInfo> getCurrentUserInfo() {
+        return ResponseModel.ok(userAccountService.getCurrentUserInfo());
     }
 }

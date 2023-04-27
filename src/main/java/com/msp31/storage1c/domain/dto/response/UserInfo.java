@@ -5,7 +5,7 @@ import lombok.Value;
 import java.util.Calendar;
 
 @Value
-public class UserInfoResponse {
+public class UserInfo {
     long id;
     String username;
     String fullName;
