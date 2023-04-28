@@ -9,8 +9,13 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import static com.msp31.storage1c.domain.dto.response.ResponseModel.ok;
+
 
 @ApiV1
 @RequiredArgsConstructor
@@ -21,6 +26,11 @@ public class RepoController {
 
     @PostMapping("/repo/create")
     public ResponseModel<RepoInfoResponse> createRepo(@Valid @RequestBody CreateRepoRequest request) {
-        return ResponseModel.ok(repoService.createRepo(request));
+        return ok(repoService.createRepo(request));
+    }
+
+    @GetMapping("/repo/{id}")
+    public ResponseModel<RepoInfoResponse> getRepoInfo(@PathVariable long id) {
+        return ok(repoService.getRepoInfo(id));
     }
 }

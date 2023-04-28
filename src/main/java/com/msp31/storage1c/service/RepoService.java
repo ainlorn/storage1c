@@ -7,6 +7,7 @@ import com.msp31.storage1c.domain.dto.response.RepoUserAccessInfo;
 
 public interface RepoService {
     RepoInfoResponse createRepo(CreateRepoRequest request);
-    RepoInfoResponse getRepoInfo(String owner, String name);
+    RepoAccessLevelInfo getAccessLevel(long repoId);
     RepoInfoResponse getRepoInfo(long repoId);
+    long getRepoId(String owner, String repoName);
 }

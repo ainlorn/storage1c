@@ -8,4 +8,6 @@ import java.util.Optional;
 
 public interface RepoRepository extends JpaRepository<Repo, Long> {
     Optional<Repo> findByOwnerAndName(User owner, String name);
+
+    Optional<Repo> findByOwnerUsernameAndName(String ownerUsername, String repoName);
 }
