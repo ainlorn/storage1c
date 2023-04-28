@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    @Query("select u from User u where u.username = ?#{ principal?.username }")
+    @Query("select u from User u where u.username = ?#{authenticated ? principal.username : null}")
     User getCurrentUser();
     Optional<User> getByUsername(String username);
     Optional<User> getByEmail(String email);

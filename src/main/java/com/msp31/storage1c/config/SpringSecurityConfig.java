@@ -33,7 +33,7 @@ public class SpringSecurityConfig {
     protected SecurityFilterChain securityFilterChain(
             HttpSecurity httpSecurity, TokenBasedRememberMeServices rememberMeServices) throws Exception {
         return httpSecurity.cors().and().csrf().disable()  // TODO configure cors and csrf properly
-                .anonymous().disable()
+                //.anonymous().disable()
                 .authorizeHttpRequests()
                 .anyRequest().permitAll().and()
                 .logout().disable()

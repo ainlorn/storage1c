@@ -9,6 +9,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,7 +27,7 @@ public class DefaultAdvice {
     @ExceptionHandler({AccessDeniedException.class, AuthenticationCredentialsNotFoundException.class})
     public ResponseEntity<ResponseModel<Object>> accessDenied(Exception e) {
         var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated())
+        if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken))
             return createResponse(Status.ACCESS_DENIED);
         return createResponse(Status.UNAUTHORIZED);
     }
