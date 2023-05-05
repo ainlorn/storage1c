@@ -11,8 +11,8 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u where u.username = ?#{authenticated ? principal.username : null}")
     User getCurrentUser();
-    Optional<User> getByUsername(String username);
-    Optional<User> getByEmail(String email);
+    Optional<User> findByUsername(String username);
+    Optional<User> findByEmail(String email);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
 }

@@ -48,8 +48,7 @@ public class RepoMapper {
                 repo.getName(),
                 userMapper.createPublicUserInfoFrom(repo.getOwner()),
                 !repo.getDefaultAccessLevel().getName().equals(privateAccessLevelName),
-                repo.getCreatedOn(),
-                repo.getUsers().stream().map(this::createRepoUserAccessInfoFrom).toList()
+                repo.getCreatedOn()
         );
     }
 

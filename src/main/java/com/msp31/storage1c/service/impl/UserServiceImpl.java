@@ -5,11 +5,12 @@ import com.msp31.storage1c.common.exception.EmailInUseException;
 import com.msp31.storage1c.common.exception.UserNotFoundException;
 import com.msp31.storage1c.common.exception.UsernameInUseException;
 import com.msp31.storage1c.domain.dto.request.UserRegistrationRequest;
+import com.msp31.storage1c.domain.dto.response.PublicUserInfo;
 import com.msp31.storage1c.domain.dto.response.UserInfo;
 import com.msp31.storage1c.domain.entity.account.User;
 import com.msp31.storage1c.domain.entity.account.model.UserModel;
 import com.msp31.storage1c.domain.mapper.UserMapper;
-import com.msp31.storage1c.service.UserAccountService;
+import com.msp31.storage1c.service.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -23,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
-public class UserAccountServiceImpl implements UserAccountService {
+public class UserServiceImpl implements UserService {
 
     UserMapper userMapper;
     UserRepository userRepository;
@@ -45,10 +46,28 @@ public class UserAccountServiceImpl implements UserAccountService {
     @PreAuthorize("isAuthenticated()")
     public UserInfo getCurrentUserInfo() {
         var userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        var user = userRepository.getByUsername(userDetails.getUsername());
+        var user = userRepository.findByUsername(userDetails.getUsername());
         if (user.isEmpty())
             throw new UserNotFoundException();
 
         return userMapper.createUserInfoFrom(user.get());
+    }
+
+    @Override
+    public PublicUserInfo getPublicUserInfo(long userId) {
+        var user = userRepository.findById(userId);
+        if (user.isEmpty())
+            throw new UserNotFoundException();
+
+        return userMapper.createPublicUserInfoFrom(user.get());
+    }
+
+    @Override
+    public long getUserIdByUsername(String username) {
+        var user = userRepository.findByUsername(username);
+        if (user.isEmpty())
+            throw new UserNotFoundException();
+
+        return user.get().getId();
     }
 }

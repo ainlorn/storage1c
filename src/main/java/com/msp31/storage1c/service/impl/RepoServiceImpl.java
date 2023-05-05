@@ -4,11 +4,12 @@ import com.msp31.storage1c.adapter.repository.RepoAccessLevelRepository;
 import com.msp31.storage1c.adapter.repository.RepoRepository;
 import com.msp31.storage1c.adapter.repository.RepoUserAccessRepository;
 import com.msp31.storage1c.adapter.repository.UserRepository;
-import com.msp31.storage1c.common.exception.RepositoryNameInUseException;
-import com.msp31.storage1c.common.exception.RepositoryNotFoundException;
+import com.msp31.storage1c.common.exception.*;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.response.RepoAccessLevelInfo;
+import com.msp31.storage1c.domain.dto.response.RepoInfo;
 import com.msp31.storage1c.domain.dto.response.RepoInfoResponse;
+import com.msp31.storage1c.domain.dto.response.RepoUserAccessInfo;
 import com.msp31.storage1c.domain.entity.repo.Repo;
 import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
 import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
@@ -22,7 +23,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import java.util.List;
+import java.util.Objects;
 
 @Service("repoService")
 @Transactional
@@ -92,5 +94,84 @@ public class RepoServiceImpl implements RepoService {
         var repo = repoRepository.getReferenceById(repoId);
 
         return repoMapper.createRepoInfoResponseFrom(repo, getAccessLevelInternal(repoId));
+    }
+
+    @Override
+    public List<RepoInfo> getReposForUser(long userId) {
+        var user = userRepository.findById(userId);
+        if (user.isEmpty())
+            throw new UserNotFoundException();
+
+        var repos = repoRepository.findAllByOwner(user.get());
+
+        return repos.stream()
+                .filter(repo -> repo.getDefaultAccessLevel().isCanView())
+                .map(repoMapper::createRepoInfoFrom)
+                .toList();
+    }
+
+    @Override
+    @PreAuthorize("isAuthenticated()")
+    public List<RepoInfo> getReposForCurrentUser() {
+        var user = userRepository.getCurrentUser();
+        var repos = repoRepository.findAllByUserHasAccess(user.getId());
+        return repos.stream()
+                .map(repoMapper::createRepoInfoFrom)
+                .toList();
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public List<RepoUserAccessInfo> getUsersForRepo(long repoId) {
+        var repo = repoRepository.findById(repoId);
+        if (repo.isEmpty())
+            throw new RepositoryNotFoundException();
+
+        return repo.get().getUsers().stream()
+                .map(repoMapper::createRepoUserAccessInfoFrom)
+                .toList();
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
+    public void addUserToRepo(long repoId, long userId, String roleName) {
+        var repo = repoRepository.getReferenceById(repoId);
+        var currentUser = userRepository.getCurrentUser();
+        var targetUser = userRepository.findById(userId);
+        if (targetUser.isEmpty())
+            throw new UserNotFoundException();
+        var role = repoAccessLevelRepository.findByName(roleName);
+        if (role == null)
+            throw new AccessLevelNotFoundException();
+
+        if (repoUserAccessRepository.findByRepoAndUser(repo, targetUser.get()).isPresent())
+            throw new UserAlreadyAddedException();
+
+        if (role.isCanManage() && !Objects.equals(currentUser.getId(), repo.getOwner().getId()))
+            throw new AccessDeniedException(); // only repo owner can add managers
+
+        var userAccess = new RepoUserAccessModel(repo, targetUser.get(), role);
+        repo.addUser(RepoUserAccess.createFromModel(userAccess));
+        repoRepository.save(repo);
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
+    public void removeUserFromRepo(long repoId, long userId) {
+        var repo = repoRepository.getReferenceById(repoId);
+        var currentUser = userRepository.getCurrentUser();
+        var targetUser = userRepository.findById(userId);
+        if (targetUser.isEmpty())
+            throw new UserNotFoundException();
+        var userAccess = repoUserAccessRepository.findByRepoAndUser(repo, targetUser.get());
+        if (userAccess.isEmpty())
+            throw new UserNotFoundException();
+
+        if (userAccess.get().getAccessLevel().isCanManage()
+                && !Objects.equals(currentUser.getId(), repo.getOwner().getId()))
+            throw new AccessDeniedException(); // only repo owner can remove managers
+
+        repo.removeUser(userAccess.get());
+        repoRepository.save(repo);
     }
 }

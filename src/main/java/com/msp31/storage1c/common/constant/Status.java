@@ -25,7 +25,9 @@ public enum Status {
 
     // repository
     REPOSITORY_NAME_IN_USE(200, 400, "Имя репозитория уже используется"),
-    REPOSITORY_NOT_FOUND(201, 404, "Репозиторий не найден");
+    REPOSITORY_NOT_FOUND(201, 404, "Репозиторий не найден"),
+    ACCESS_LEVEL_NOT_FOUND(202, 404, "Уровень доступа не существует"),
+    USER_ALREADY_ADDED(203, 400, "Пользователь уже имеет доступ к репозиторию");
 
     int code;
     int httpCode;

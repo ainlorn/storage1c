@@ -12,5 +12,4 @@ public class RepoInfo {
     PublicUserInfo owner;
     boolean isPublic;
     Calendar createdOn;
-    List<RepoUserAccessInfo> users;
 }
