@@ -43,6 +43,7 @@ public class UserMapper {
 
     public PublicUserInfo createPublicUserInfoFrom(User user) {
         return new PublicUserInfo(
+                user.getId(),
                 user.getUsername(),
                 user.getFullName(),
                 user.getCreatedOn()

@@ -6,6 +6,7 @@ import java.util.Calendar;
 
 @Value
 public class PublicUserInfo {
+    long id;
     String username;
     String fullName;
     Calendar createdOn;
