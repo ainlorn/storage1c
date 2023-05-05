@@ -11,7 +11,7 @@ import org.hibernate.validator.constraints.Length;
 public class UserRegistrationRequest {
     @Length(min=3, max=63)
     @AsciiString
-    @Pattern(regexp = "^[a-zA-Z0-9_-]*$")
+    @Pattern(regexp = "(?!^\\d+$)^[a-zA-Z0-9_-]+$")
     @NotEmpty
     String username;
 
