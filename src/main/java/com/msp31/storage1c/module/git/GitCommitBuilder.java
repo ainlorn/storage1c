@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Value;
 import org.eclipse.jgit.api.Git;
 
+import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,7 +70,7 @@ public class GitCommitBuilder {
                 for (var file : newFiles) {
                     var relPath = Path.of(file.getPath()).normalize().toString();
                     var absPath = Path.of(workDir, relPath).toAbsolutePath().normalize();
-                    if (!absPath.toString().startsWith(workDir + "/"))
+                    if (!absPath.toString().startsWith(workDir + File.separator))
                         throw new GitIllegalFilePathException(absPath.toString());
                     if (absPath.toFile().isDirectory())
                         throw new GitTargetFileIsADirectoryException(absPath.toString());
@@ -99,8 +100,8 @@ public class GitCommitBuilder {
         private final InputStream inputStream;
 
         public GitNewFile(String path, InputStream inputStream) {
-            if (!path.startsWith("/"))
-                path = "/" + path;
+            if (!path.startsWith(File.separator))
+                path = File.separator + path;
             this.path = path;
             this.inputStream = inputStream;
         }
