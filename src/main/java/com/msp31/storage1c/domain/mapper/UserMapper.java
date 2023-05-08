@@ -5,6 +5,7 @@ import com.msp31.storage1c.domain.dto.response.PublicUserInfo;
 import com.msp31.storage1c.domain.dto.response.UserInfo;
 import com.msp31.storage1c.domain.entity.account.User;
 import com.msp31.storage1c.domain.entity.account.model.UserModel;
+import com.msp31.storage1c.module.git.GitIdentity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -48,5 +49,9 @@ public class UserMapper {
                 user.getFullName(),
                 user.getCreatedOn()
         );
+    }
+
+    public GitIdentity createGitIdentityFrom(User user) {
+        return new GitIdentity(user.getUsername(), user.getEmail());
     }
 }

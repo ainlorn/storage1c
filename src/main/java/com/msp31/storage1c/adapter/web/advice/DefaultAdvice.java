@@ -15,39 +15,36 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.MethodNotAllowedException;
 
+
 @ApiAdvice
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class DefaultAdvice {
 
     @ExceptionHandler({BaseException.class})
     public ResponseEntity<ResponseModel<Object>> baseException(BaseException e) {
-        return createResponse(e.getStatus());
+        return AdviceUtils.createResponse(e.getStatus());
     }
 
     @ExceptionHandler({AccessDeniedException.class, AuthenticationCredentialsNotFoundException.class})
     public ResponseEntity<ResponseModel<Object>> accessDenied(Exception e) {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken))
-            return createResponse(Status.ACCESS_DENIED);
-        return createResponse(Status.UNAUTHORIZED);
+            return AdviceUtils.createResponse(Status.ACCESS_DENIED);
+        return AdviceUtils.createResponse(Status.UNAUTHORIZED);
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class})
     public ResponseEntity<ResponseModel<Object>> noBody(Exception e) {
-        return createResponse(Status.MISSING_BODY);
+        return AdviceUtils.createResponse(Status.MISSING_BODY);
     }
 
     @ExceptionHandler({MethodNotAllowedException.class})
     public ResponseEntity<ResponseModel<Object>> notAllowed(Exception e) {
-        return createResponse(Status.METHOD_NOT_ALLOWED);
+        return AdviceUtils.createResponse(Status.METHOD_NOT_ALLOWED);
     }
 
     @ExceptionHandler({Exception.class})
-    public ResponseEntity<ResponseModel<Object>> runtimeException(Exception e) {
-        return createResponse(Status.UNKNOWN);
-    }
-
-    private static ResponseEntity<ResponseModel<Object>> createResponse(Status s) {
-        return ResponseEntity.status(s.getHttpCode()).body(ResponseModel.withStatus(s, null));
+    public ResponseEntity<ResponseModel<Object>> anyException(Exception e) {
+        return AdviceUtils.createResponse(Status.UNKNOWN);
     }
 }

@@ -6,15 +6,15 @@ import com.msp31.storage1c.adapter.repository.RepoUserAccessRepository;
 import com.msp31.storage1c.adapter.repository.UserRepository;
 import com.msp31.storage1c.common.exception.*;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
-import com.msp31.storage1c.domain.dto.response.RepoAccessLevelInfo;
-import com.msp31.storage1c.domain.dto.response.RepoInfo;
-import com.msp31.storage1c.domain.dto.response.RepoInfoResponse;
-import com.msp31.storage1c.domain.dto.response.RepoUserAccessInfo;
+import com.msp31.storage1c.domain.dto.request.PushFileRequest;
+import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.repo.Repo;
 import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
 import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
 import com.msp31.storage1c.domain.entity.repo.model.RepoUserAccessModel;
 import com.msp31.storage1c.domain.mapper.RepoMapper;
+import com.msp31.storage1c.domain.mapper.UserMapper;
+import com.msp31.storage1c.module.git.Git;
 import com.msp31.storage1c.service.RepoService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +34,12 @@ public class RepoServiceImpl implements RepoService {
     static final String ownerAccessLevel = "MANAGER";
 
     UserRepository userRepository;
+    UserMapper userMapper;
     RepoRepository repoRepository;
     RepoAccessLevelRepository repoAccessLevelRepository;
     RepoUserAccessRepository repoUserAccessRepository;
     RepoMapper repoMapper;
+    Git git;
 
     @Override
     @PreAuthorize("isAuthenticated()")
@@ -54,6 +56,14 @@ public class RepoServiceImpl implements RepoService {
         var userAccessModel = new RepoUserAccessModel(repo, currentUser, accessLevel);
         repo.addUser(RepoUserAccess.createFromModel(userAccessModel));
         repo = repoRepository.save(repo);
+
+        try (var gitRepo = git.createRepository(repo.getDirectoryName())) {
+            gitRepo.newCommit()
+                    .addEmptyFile(".gitkeep")
+                    .setAuthor(userMapper.createGitIdentityFrom(currentUser))
+                    .setMessage("Проект создан")
+                    .commit();
+        }
 
         return repoMapper.createRepoInfoResponseFrom(repo, accessLevel);
     }
@@ -173,5 +183,20 @@ public class RepoServiceImpl implements RepoService {
 
         repo.removeUser(userAccess.get());
         repoRepository.save(repo);
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#request.repoId).canCommit")
+    public CommitInfo pushFile(PushFileRequest request) {
+        var dbRepo = repoRepository.getReferenceById(request.getRepoId());
+        var user = userRepository.getCurrentUser();
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            var gitCommit = gitRepo.newCommit()
+                    .addFile(request.getPath(), request.getFileStream())
+                    .setAuthor(userMapper.createGitIdentityFrom(user))
+                    .setMessage(request.getMessage())
+                    .commit();
+            return repoMapper.createCommitInfoFrom(gitCommit);
+        }
     }
 }

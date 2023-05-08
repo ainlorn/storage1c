@@ -27,7 +27,9 @@ public enum Status {
     REPOSITORY_NAME_IN_USE(200, 400, "Имя репозитория уже используется"),
     REPOSITORY_NOT_FOUND(201, 404, "Репозиторий не найден"),
     ACCESS_LEVEL_NOT_FOUND(202, 404, "Уровень доступа не существует"),
-    USER_ALREADY_ADDED(203, 400, "Пользователь уже имеет доступ к репозиторию");
+    USER_ALREADY_ADDED(203, 400, "Пользователь уже имеет доступ к репозиторию"),
+    ILLEGAL_FILE_PATH(204, 400, "Путь к файлу некорректен"),
+    TARGET_FILE_IS_A_DIRECTORY(205, 400, "Целевой файл является директорией");
 
     int code;
     int httpCode;

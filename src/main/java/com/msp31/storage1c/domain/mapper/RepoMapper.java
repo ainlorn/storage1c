@@ -1,16 +1,15 @@
 package com.msp31.storage1c.domain.mapper;
 
 import com.msp31.storage1c.adapter.repository.RepoAccessLevelRepository;
+import com.msp31.storage1c.adapter.repository.UserRepository;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
-import com.msp31.storage1c.domain.dto.response.RepoAccessLevelInfo;
-import com.msp31.storage1c.domain.dto.response.RepoInfo;
-import com.msp31.storage1c.domain.dto.response.RepoInfoResponse;
-import com.msp31.storage1c.domain.dto.response.RepoUserAccessInfo;
+import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.account.User;
 import com.msp31.storage1c.domain.entity.repo.Repo;
 import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
 import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
 import com.msp31.storage1c.domain.entity.repo.model.RepoModel;
+import com.msp31.storage1c.module.git.GitCommit;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -27,6 +26,7 @@ public class RepoMapper {
     static final String publicAccessLevelName = "VIEWER";
 
     UserMapper userMapper;
+    UserRepository userRepository;
     RepoAccessLevelRepository repoAccessLevelRepository;
 
     public RepoModel createModelFrom(CreateRepoRequest request, User user) {
@@ -36,8 +36,8 @@ public class RepoMapper {
                 user,
                 repoAccessLevelRepository.findByName(
                         request.getIsPrivate()
-                        ? privateAccessLevelName
-                        : publicAccessLevelName
+                                ? privateAccessLevelName
+                                : publicAccessLevelName
                 )
         );
     }
@@ -69,6 +69,21 @@ public class RepoMapper {
                 accessLevel.isCanView(),
                 accessLevel.isCanCommit(),
                 accessLevel.isCanManage()
+        );
+    }
+
+    public CommitInfo createCommitInfoFrom(GitCommit gitCommit) {
+        var authorIdentity = gitCommit.getAuthor();
+        var author = userRepository.findByEmail(authorIdentity.getEmail());
+        PublicUserInfo authorInfo = null;
+        if (author.isPresent())
+            authorInfo = userMapper.createPublicUserInfoFrom(author.get());
+
+        return new CommitInfo(
+                gitCommit.getId(),
+                gitCommit.getMessage(),
+                authorInfo,
+                gitCommit.getWhen()
         );
     }
 }
