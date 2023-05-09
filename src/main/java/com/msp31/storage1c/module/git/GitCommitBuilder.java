@@ -128,6 +128,9 @@ public class GitCommitBuilder {
     }
 
     private void removeFiles() throws IOException, GitAPIException {
+        if (filesToDelete.isEmpty())
+            return;
+
         var workDir = git.getRepository().getWorkTree().toPath().toRealPath().toString();
         int added = 0;
 
