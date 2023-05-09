@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Value;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.EmptyCommitException;
+import org.eclipse.jgit.api.errors.GitAPIException;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import static com.msp31.storage1c.module.git.GitWrapper.runWrapped;
 public class GitCommitBuilder {
     private final Git git;
     private final List<GitNewFile> newFiles;
+    private final List<String> filesToDelete;
     private String message = ".";
     private GitIdentity author;
     private boolean executed = false;
@@ -30,6 +32,7 @@ public class GitCommitBuilder {
     GitCommitBuilder(Git git) {
         this.git = git;
         this.newFiles = new ArrayList<>();
+        this.filesToDelete = new ArrayList<>();
     }
 
     public GitCommitBuilder addFile(String path, InputStream inputStream) {
@@ -57,34 +60,26 @@ public class GitCommitBuilder {
         return this;
     }
 
+    public GitCommitBuilder deleteFile(String path) {
+        this.filesToDelete.add(path);
+        return this;
+    }
+
     public GitCommit commit() {
         if (executed)
             throw new GitCommitFailedException("Commit already executed");
         if (author == null)
             throw new GitCommitFailedException("Commit author is null");
-        if (newFiles.isEmpty())
-            throw new GitCommitFailedException("Commit contains no files");
+        if (newFiles.isEmpty() && filesToDelete.isEmpty())
+            throw new GitEmptyCommitException();
         executed = true;
 
         try {
             return runWrapped(() -> {
                 synchronized (git.getRepository()) {
-                    var workDir = git.getRepository().getWorkTree().toPath().toRealPath().toString();
-                    var addCommand = git.add();
-                    for (var file : newFiles) {
-                        var relPath = GitUtils.normalizeRelPath(file.getPath());
-                        var absPath = Path.of(workDir, relPath).toAbsolutePath().normalize();
-                        if (!absPath.toString().startsWith(workDir + File.separator))
-                            throw new GitIllegalFilePathException(absPath.toString());
-                        if (absPath.toFile().isDirectory())
-                            throw new GitTargetFileIsADirectoryException(absPath.toString());
+                    addFiles();
+                    removeFiles();
 
-                        var inputStream = file.getInputStream();
-                        Files.createDirectories(absPath.getParent());
-                        Files.copy(inputStream, absPath, StandardCopyOption.REPLACE_EXISTING);
-                        addCommand.addFilepattern(relPath);
-                    }
-                    addCommand.call();
                     var ident = author.toPersonIdent();
                     try {
                         var revCommit = git.commit()
@@ -107,6 +102,49 @@ public class GitCommitBuilder {
                 } catch (IOException ignore) { }
             }
         }
+    }
+
+    private void addFiles() throws IOException, GitAPIException {
+        if (newFiles.isEmpty())
+            return;
+
+        var workDir = git.getRepository().getWorkTree().toPath().toRealPath().toString();
+
+        var addCommand = git.add();
+        for (var file : newFiles) {
+            var relPath = GitUtils.normalizeRelPath(file.getPath());
+            var absPath = Path.of(workDir, relPath).toAbsolutePath().normalize();
+            if (!absPath.toString().startsWith(workDir + File.separator))
+                throw new GitIllegalFilePathException(absPath.toString());
+            if (absPath.toFile().isDirectory())
+                throw new GitTargetFileIsADirectoryException(absPath.toString());
+
+            var inputStream = file.getInputStream();
+            Files.createDirectories(absPath.getParent());
+            Files.copy(inputStream, absPath, StandardCopyOption.REPLACE_EXISTING);
+            addCommand.addFilepattern(relPath);
+        }
+        addCommand.call();
+    }
+
+    private void removeFiles() throws IOException, GitAPIException {
+        var workDir = git.getRepository().getWorkTree().toPath().toRealPath().toString();
+        int added = 0;
+
+        var rmCommand = git.rm().setCached(false);
+        for (var path : filesToDelete) {
+            var relPath = GitUtils.normalizeRelPath(path);
+            var absPath = Path.of(workDir, relPath).toAbsolutePath().normalize();
+            var file = absPath.toFile();
+            if (file.isDirectory())
+                throw new GitTargetFileIsADirectoryException(absPath.toString());
+            if (!file.exists())
+                continue;
+            rmCommand.addFilepattern(relPath);
+            added++;
+        }
+        if (added > 0)
+            rmCommand.call();
     }
 
     @Getter

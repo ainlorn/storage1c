@@ -18,6 +18,7 @@ public interface RepoService {
     void addUserToRepo(long repoId, long userId, String role);
     void removeUserFromRepo(long repoId, long userId);
     CommitInfo pushFile(PushFileRequest request);
+    CommitInfo deleteFile(long repoId, String path);
     FileDownloadInfo prepareFileDownload(long repoId, String path, String rev);
     void writeBlobToOutputStream(long repoId, String blobKey, OutputStream outputStream);
 }

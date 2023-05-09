@@ -209,6 +209,21 @@ public class RepoServiceImpl implements RepoService {
     }
 
     @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canCommit")
+    public CommitInfo deleteFile(long repoId, String path) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        var user = userRepository.getCurrentUser();
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            var gitCommit = gitRepo.newCommit()
+                    .deleteFile(path)
+                    .setAuthor(userMapper.createGitIdentityFrom(user))
+                    .setMessage("Удалён файл '%s'".formatted(path))
+                    .commit();
+            return repoMapper.createCommitInfoFrom(gitCommit);
+        }
+    }
+
+    @Override
     @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
     public FileDownloadInfo prepareFileDownload(long repoId, String path, String rev) {
         var dbRepo = repoRepository.getReferenceById(repoId);

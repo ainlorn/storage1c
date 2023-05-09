@@ -60,6 +60,12 @@ public class RepoController {
         return ok(repoService.prepareFileDownload(id, path, rev));
     }
 
+    @DeleteMapping("/repos/{id}/files/{*path}")
+    public ResponseModel<CommitInfo> deleteFile(@PathVariable long id,
+                                            @PathVariable @Valid @ValidPath String path) {
+        return ok(repoService.deleteFile(id, path));
+    }
+
     @GetMapping(path = "/repos/{id}/blobs/{key:[0-9a-f]+:[0-9a-f]+}")
     public ResponseEntity<StreamingResponseBody> downloadBlob(@PathVariable long id,
                                                               @PathVariable String key,
