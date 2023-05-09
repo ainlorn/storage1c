@@ -29,7 +29,8 @@ public enum Status {
     ACCESS_LEVEL_NOT_FOUND(202, 404, "Уровень доступа не существует"),
     USER_ALREADY_ADDED(203, 400, "Пользователь уже имеет доступ к репозиторию"),
     ILLEGAL_FILE_PATH(204, 400, "Путь к файлу некорректен"),
-    TARGET_FILE_IS_A_DIRECTORY(205, 400, "Целевой файл является директорией");
+    TARGET_FILE_IS_A_DIRECTORY(205, 400, "Целевой файл является директорией"),
+    NEW_VERSION_IS_IDENTICAL_TO_PREVIOUS(206, 400, "Новая версия файла идентична предыдущей");
 
     int code;
     int httpCode;

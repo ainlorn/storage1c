@@ -1,11 +1,13 @@
 package com.msp31.storage1c.module.git;
 
 import com.msp31.storage1c.module.git.exception.GitCommitFailedException;
+import com.msp31.storage1c.module.git.exception.GitEmptyCommitException;
 import com.msp31.storage1c.module.git.exception.GitIllegalFilePathException;
 import com.msp31.storage1c.module.git.exception.GitTargetFileIsADirectoryException;
 import lombok.Getter;
 import lombok.Value;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.EmptyCommitException;
 
 import java.io.File;
 import java.io.InputStream;
@@ -83,13 +85,18 @@ public class GitCommitBuilder {
                 }
                 addCommand.call();
                 var ident = author.toPersonIdent();
-                var revCommit = git.commit()
-                        .setAuthor(ident)
-                        .setCommitter(ident)
-                        .setMessage(message)
-                        .call();
+                try {
+                    var revCommit = git.commit()
+                            .setAuthor(ident)
+                            .setCommitter(ident)
+                            .setMessage(message)
+                            .setAllowEmpty(false)
+                            .call();
 
-                return GitCommit.fromRevCommit(revCommit);
+                    return GitCommit.fromRevCommit(revCommit);
+                } catch (EmptyCommitException e) {
+                    throw new GitEmptyCommitException();
+                }
             }
         });
     }

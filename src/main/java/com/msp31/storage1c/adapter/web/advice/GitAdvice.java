@@ -3,6 +3,7 @@ package com.msp31.storage1c.adapter.web.advice;
 import com.msp31.storage1c.adapter.web.annotation.ApiAdvice;
 import com.msp31.storage1c.common.constant.Status;
 import com.msp31.storage1c.domain.dto.response.ResponseModel;
+import com.msp31.storage1c.module.git.exception.GitEmptyCommitException;
 import com.msp31.storage1c.module.git.exception.GitIllegalFilePathException;
 import com.msp31.storage1c.module.git.exception.GitTargetFileIsADirectoryException;
 import org.springframework.core.Ordered;
@@ -21,5 +22,10 @@ public class GitAdvice {
     @ExceptionHandler({GitTargetFileIsADirectoryException.class})
     public ResponseEntity<ResponseModel<Object>> targetFileIsADirectory(GitTargetFileIsADirectoryException e) {
         return AdviceUtils.createResponse(Status.TARGET_FILE_IS_A_DIRECTORY);
+    }
+
+    @ExceptionHandler({GitEmptyCommitException.class})
+    public ResponseEntity<ResponseModel<Object>> emptyCommit(GitEmptyCommitException e) {
+        return AdviceUtils.createResponse(Status.NEW_VERSION_IS_IDENTICAL_TO_PREVIOUS);
     }
 }
