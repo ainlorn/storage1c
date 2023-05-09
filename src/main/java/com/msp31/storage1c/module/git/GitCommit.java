@@ -14,7 +14,7 @@ public class GitCommit {
 
     public static GitCommit fromRevCommit(RevCommit revCommit) {
         var calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(revCommit.getCommitTime());
+        calendar.setTimeInMillis(revCommit.getCommitTime() * 1000L);
         return new GitCommit(
                 revCommit.getName(),
                 revCommit.getFullMessage(),
