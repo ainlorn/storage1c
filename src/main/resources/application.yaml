@@ -20,6 +20,11 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
 
+  servlet:
+    multipart:
+      max-file-size: 16MB
+      max-request-size: 32MB
+
 storage1c:
   security:
     remember-me-key: ${REMEMBER_ME_KEY:15bd8d60-e818-4ecf-8cbf-c29bdc73189b}
