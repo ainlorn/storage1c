@@ -5,6 +5,7 @@ import com.msp31.storage1c.adapter.repository.RepoRepository;
 import com.msp31.storage1c.adapter.repository.RepoUserAccessRepository;
 import com.msp31.storage1c.adapter.repository.UserRepository;
 import com.msp31.storage1c.common.exception.*;
+import com.msp31.storage1c.config.properties.GitProperties;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
 import com.msp31.storage1c.domain.dto.response.*;
@@ -16,13 +17,19 @@ import com.msp31.storage1c.domain.mapper.RepoMapper;
 import com.msp31.storage1c.domain.mapper.UserMapper;
 import com.msp31.storage1c.module.git.Git;
 import com.msp31.storage1c.service.RepoService;
+import com.msp31.storage1c.utils.Hex;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Objects;
 
@@ -33,6 +40,7 @@ import java.util.Objects;
 public class RepoServiceImpl implements RepoService {
     static final String ownerAccessLevel = "MANAGER";
 
+    GitProperties gitProperties;
     UserRepository userRepository;
     UserMapper userMapper;
     RepoRepository repoRepository;
@@ -198,5 +206,49 @@ public class RepoServiceImpl implements RepoService {
                     .commit();
             return repoMapper.createCommitInfoFrom(gitCommit);
         }
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public FileDownloadInfo prepareFileDownload(long repoId, String path, String rev) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            var blobId = gitRepo.getBlobIdForFile(path, rev);
+            var key = makeBlobKey(repoId, blobId);
+            var url = makeBlobDownloadUrl(repoId, key, path);
+            return new FileDownloadInfo(url);
+        }
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public void writeBlobToOutputStream(long repoId, String blobKey, OutputStream outputStream) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            var blobId = blobKey.substring(0, blobKey.indexOf(':'));
+            if (!blobKey.equals(makeBlobKey(repoId, blobId)))
+                return;
+
+            gitRepo.writeBlobToOutputStream(blobId, outputStream);
+        }
+    }
+
+    private String makeBlobKey(long repoId, String blobId) {
+        try {
+            var keyRaw = "%d_%s_%s".formatted(repoId, blobId, gitProperties.getFileDownloadKey());
+            var messageDigest = MessageDigest.getInstance("SHA-256");
+            var hashBytes = messageDigest.digest(keyRaw.getBytes(StandardCharsets.UTF_8));
+            return blobId + ':' + Hex.bytesToHex(hashBytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private String makeBlobDownloadUrl(long repoId, String blobKey, String filePath) {
+        return gitProperties.getFileDownloadUrl().formatted(
+                repoId,
+                blobKey,
+                filePath.substring(filePath.lastIndexOf('/') + 1)
+        );
     }
 }

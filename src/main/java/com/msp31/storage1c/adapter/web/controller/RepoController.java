@@ -5,19 +5,20 @@ import com.msp31.storage1c.common.validation.constraint.ValidPath;
 import com.msp31.storage1c.domain.dto.request.AddUserToRepoRequest;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
-import com.msp31.storage1c.domain.dto.response.CommitInfo;
-import com.msp31.storage1c.domain.dto.response.RepoInfoResponse;
-import com.msp31.storage1c.domain.dto.response.RepoUserAccessInfo;
-import com.msp31.storage1c.domain.dto.response.ResponseModel;
+import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.service.RepoService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.util.List;
@@ -43,13 +44,32 @@ public class RepoController {
         return ok(repoService.getRepoInfo(id));
     }
 
-    @PostMapping(path = "/repos/{id}/files", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PostMapping(path = "/repos/{id}/files", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseModel<CommitInfo> pushFile(@PathVariable long id,
                                               @RequestPart @Valid @ValidPath String path,
                                               @RequestPart String message,
                                               @RequestPart MultipartFile file) throws IOException {
         var request = new PushFileRequest(id, path, message, file.getInputStream());
         return ok(repoService.pushFile(request));
+    }
+
+    @GetMapping(path = "/repos/{id}/files/{*path}")
+    public ResponseModel<FileDownloadInfo> requestFileDownload(@PathVariable long id,
+                                                               @PathVariable @Valid @ValidPath String path,
+                                                               @RequestParam(defaultValue = "HEAD") String rev) {
+        return ok(repoService.prepareFileDownload(id, path, rev));
+    }
+
+    @GetMapping(path = "/repos/{id}/blobs/{key:[0-9a-f]+:[0-9a-f]+}")
+    public ResponseEntity<StreamingResponseBody> downloadBlob(@PathVariable long id,
+                                                              @PathVariable String key,
+                                                              @RequestParam(defaultValue = "blob.bin") String fname) {
+        StreamingResponseBody responseBody = outputStream -> repoService.writeBlobToOutputStream(id, key, outputStream);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fname)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(responseBody);
     }
 
     @GetMapping("/repos/{id}/users")

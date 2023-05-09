@@ -4,6 +4,7 @@ import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
 import com.msp31.storage1c.domain.dto.response.*;
 
+import java.io.OutputStream;
 import java.util.List;
 
 public interface RepoService {
@@ -17,4 +18,6 @@ public interface RepoService {
     void addUserToRepo(long repoId, long userId, String role);
     void removeUserFromRepo(long repoId, long userId);
     CommitInfo pushFile(PushFileRequest request);
+    FileDownloadInfo prepareFileDownload(long repoId, String path, String rev);
+    void writeBlobToOutputStream(long repoId, String blobKey, OutputStream outputStream);
 }

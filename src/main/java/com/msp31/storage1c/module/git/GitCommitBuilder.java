@@ -10,6 +10,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.EmptyCommitException;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,40 +66,47 @@ public class GitCommitBuilder {
             throw new GitCommitFailedException("Commit contains no files");
         executed = true;
 
-        return runWrapped(() -> {
-            synchronized (git.getRepository()) {
-                var workDir = git.getRepository().getWorkTree().toPath().toRealPath().toString();
-                var addCommand = git.add();
-                for (var file : newFiles) {
-                    var relPath = Path.of(file.getPath()).normalize().toString();
-                    var absPath = Path.of(workDir, relPath).toAbsolutePath().normalize();
-                    if (!absPath.toString().startsWith(workDir + File.separator))
-                        throw new GitIllegalFilePathException(absPath.toString());
-                    if (absPath.toFile().isDirectory())
-                        throw new GitTargetFileIsADirectoryException(absPath.toString());
+        try {
+            return runWrapped(() -> {
+                synchronized (git.getRepository()) {
+                    var workDir = git.getRepository().getWorkTree().toPath().toRealPath().toString();
+                    var addCommand = git.add();
+                    for (var file : newFiles) {
+                        var relPath = GitUtils.normalizeRelPath(file.getPath());
+                        var absPath = Path.of(workDir, relPath).toAbsolutePath().normalize();
+                        if (!absPath.toString().startsWith(workDir + File.separator))
+                            throw new GitIllegalFilePathException(absPath.toString());
+                        if (absPath.toFile().isDirectory())
+                            throw new GitTargetFileIsADirectoryException(absPath.toString());
 
-                    var inputStream = file.getInputStream();
-                    Files.createDirectories(absPath.getParent());
-                    Files.copy(inputStream, absPath, StandardCopyOption.REPLACE_EXISTING);
-                    inputStream.close();
-                    addCommand.addFilepattern(relPath);
+                        var inputStream = file.getInputStream();
+                        Files.createDirectories(absPath.getParent());
+                        Files.copy(inputStream, absPath, StandardCopyOption.REPLACE_EXISTING);
+                        addCommand.addFilepattern(relPath);
+                    }
+                    addCommand.call();
+                    var ident = author.toPersonIdent();
+                    try {
+                        var revCommit = git.commit()
+                                .setAuthor(ident)
+                                .setCommitter(ident)
+                                .setMessage(message)
+                                .setAllowEmpty(false)
+                                .call();
+
+                        return GitCommit.fromRevCommit(revCommit);
+                    } catch (EmptyCommitException e) {
+                        throw new GitEmptyCommitException();
+                    }
                 }
-                addCommand.call();
-                var ident = author.toPersonIdent();
+            });
+        } finally {
+            for (var file : newFiles) {
                 try {
-                    var revCommit = git.commit()
-                            .setAuthor(ident)
-                            .setCommitter(ident)
-                            .setMessage(message)
-                            .setAllowEmpty(false)
-                            .call();
-
-                    return GitCommit.fromRevCommit(revCommit);
-                } catch (EmptyCommitException e) {
-                    throw new GitEmptyCommitException();
-                }
+                    file.getInputStream().close();
+                } catch (IOException ignore) { }
             }
-        });
+        }
     }
 
     @Getter
@@ -107,8 +115,6 @@ public class GitCommitBuilder {
         private final InputStream inputStream;
 
         public GitNewFile(String path, InputStream inputStream) {
-            if (!path.startsWith(File.separator))
-                path = File.separator + path;
             this.path = path;
             this.inputStream = inputStream;
         }
