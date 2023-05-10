@@ -26,16 +26,25 @@ public class UserController {
     UserService userService;
     RepoService repoService;
 
+    /**
+     * Получить информацию о текущем пользователе
+     */
     @GetMapping("/me")
     public ResponseModel<UserInfo> getCurrentUserInfo() {
         return ok(userService.getCurrentUserInfo());
     }
 
+    /**
+     * Получить список репозиторий, к которым у пользователя есть доступ
+     */
     @GetMapping("/me/repos")
     public ResponseModel<List<RepoInfo>> getCurrentUserRepos() {
         return ok(repoService.getReposForCurrentUser());
     }
 
+    /**
+     * Переадресация на /users/{id}/{*path}
+     */
     @RequestMapping("/users/{username:(?!^\\d+$)^[a-zA-Z0-9_-]+$}/{*path}")
     public void redirect(@PathVariable String username,
                          @PathVariable String path,
@@ -44,11 +53,19 @@ public class UserController {
         response.sendRedirect("/api/v1/users/%d%s".formatted(userId, path));
     }
 
+    /**
+     * Получить информацию о пользователе
+     * @param userId id пользователя
+     */
     @GetMapping("/users/{userId:\\d+}")
     public ResponseModel<PublicUserInfo> getUserInfoById(@PathVariable long userId) {
         return ok(userService.getPublicUserInfo(userId));
     }
 
+    /**
+     * Получить список публичных репозиториев, принадлежащих пользователю
+     * @param userId id пользователя
+     */
     @GetMapping("/users/{userId:\\d+}/repos")
     public ResponseModel<List<RepoInfo>> getUserRepos(@PathVariable long userId) {
         return ok(repoService.getReposForUser(userId));

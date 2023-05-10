@@ -36,11 +36,17 @@ public class UserAccountController {
     AuthenticationManager authenticationManager;
     RememberMeServices rememberMeServices;
 
+    /**
+     * Зарегистрировать аккаунт пользователя
+     */
     @PostMapping("/register")
     public ResponseModel<UserInfo> registerAccount(@Valid @RequestBody UserRegistrationRequest request) {
         return ok(userService.registerUser(request));
     }
 
+    /**
+     * Войти в аккаунт пользователя
+     */
     @PostMapping("/login")
     public ResponseEntity<ResponseModel<Object>> login(
             @Valid @RequestBody UserAuthenticationRequest authRequest, HttpServletRequest request,
@@ -72,6 +78,9 @@ public class UserAccountController {
         return ResponseEntity.ok(ResponseModel.ok(userService.getCurrentUserInfo()));
     }
 
+    /**
+     * Выйти из аккаунта
+     */
     @GetMapping("/logout")
     public ResponseModel<Object> logout(HttpServletRequest request, HttpServletResponse response) {
         SecurityContextHolder.getContext().setAuthentication(null);

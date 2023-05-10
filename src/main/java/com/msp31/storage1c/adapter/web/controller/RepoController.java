@@ -7,7 +7,6 @@ import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.service.RepoService;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -34,16 +33,31 @@ public class RepoController {
 
     RepoService repoService;
 
+
+    /**
+     * Создать репозиторий
+     */
     @PostMapping("/repos")
     public ResponseModel<RepoInfoResponse> createRepo(@Valid @RequestBody CreateRepoRequest request) {
         return ok(repoService.createRepo(request));
     }
 
+    /**
+     * Получить информацию о репозитории
+     * @param id id репозитория
+     */
     @GetMapping("/repos/{id}")
     public ResponseModel<RepoInfoResponse> getRepoInfo(@PathVariable long id) {
         return ok(repoService.getRepoInfo(id));
     }
 
+    /**
+     * Загрузить файл в репозиторий и создать коммит.
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     * @param message сообщение коммита
+     * @param file файл
+     */
     @PostMapping(path = "/repos/{id}/files", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseModel<CommitInfo> pushFile(@PathVariable long id,
                                               @RequestPart @Valid @ValidPath String path,
@@ -53,11 +67,21 @@ public class RepoController {
         return ok(repoService.pushFile(request));
     }
 
+    /**
+     * Получить список файлов
+     * @param id id репозитория
+     */
     @GetMapping(path = "/repos/{id}/files")
     public ResponseModel<FileTreeInfo> listFiles(@PathVariable long id) {
         return ok(repoService.listFiles(id));
     }
 
+    /**
+     * Получить ссылку на загрузку файла из репозитория
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     * @param rev версия файла (id коммита)
+     */
     @GetMapping(path = "/repos/{id}/files/{*path}")
     public ResponseModel<FileDownloadInfo> requestFileDownload(@PathVariable long id,
                                                                @PathVariable @Valid @ValidPath String path,
@@ -65,6 +89,11 @@ public class RepoController {
         return ok(repoService.prepareFileDownload(id, path, rev));
     }
 
+    /**
+     * Удалить файл из репозитория и создать коммит
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     */
     @DeleteMapping("/repos/{id}/files/{*path}")
     public ResponseModel<CommitInfo> deleteFile(@PathVariable long id,
                                             @PathVariable @Valid @ValidPath String path) {
@@ -83,11 +112,19 @@ public class RepoController {
                 .body(responseBody);
     }
 
+    /**
+     * Получить список пользователей, имеющих доступ к репозиторию
+     * @param id id репозитория
+     */
     @GetMapping("/repos/{id}/users")
     public ResponseModel<List<RepoUserAccessInfo>> getRepoUsers(@PathVariable long id) {
         return ok(repoService.getUsersForRepo(id));
     }
 
+    /**
+     * Добавить пользователя в репозиторий
+     * @param id id репозитория
+     */
     @PostMapping("/repos/{id}/users")
     public ResponseModel<List<RepoUserAccessInfo>> addRepoUser(@PathVariable long id,
                                                                @RequestBody @Valid AddUserToRepoRequest request) {
@@ -95,6 +132,11 @@ public class RepoController {
         return ok(repoService.getUsersForRepo(id));
     }
 
+    /**
+     * Удалить пользователя из репозитория
+     * @param repoId id репозитория
+     * @param userId id пользователя
+     */
     @DeleteMapping("/repos/{repoId}/users/{userId}")
     public ResponseModel<List<RepoUserAccessInfo>> deleteRepoUser(@PathVariable long repoId,
                                                                   @PathVariable long userId) {
