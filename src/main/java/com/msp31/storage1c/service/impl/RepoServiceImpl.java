@@ -248,6 +248,17 @@ public class RepoServiceImpl implements RepoService {
         }
     }
 
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public FileTreeInfo listFiles(long repoId) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            return repoMapper.createFileTreeInfoFrom(gitRepo.listFiles());
+        }
+    }
+
+
+
     private String makeBlobKey(long repoId, String blobId) {
         try {
             var keyRaw = "%d_%s_%s".formatted(repoId, blobId, gitProperties.getFileDownloadKey());

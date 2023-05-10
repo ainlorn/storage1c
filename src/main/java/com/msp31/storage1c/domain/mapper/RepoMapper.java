@@ -10,11 +10,15 @@ import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
 import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
 import com.msp31.storage1c.domain.entity.repo.model.RepoModel;
 import com.msp31.storage1c.module.git.GitCommit;
+import com.msp31.storage1c.module.git.GitFile;
+import com.msp31.storage1c.module.git.GitFileTree;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -85,5 +89,30 @@ public class RepoMapper {
                 authorInfo,
                 gitCommit.getWhen()
         );
+    }
+
+    public FileTreeInfo createFileTreeInfoFrom(GitFileTree gitFileTree) {
+        var rootInfo = createFileInfoFrom(gitFileTree.getRoot());
+        return new FileTreeInfo(rootInfo.getFiles());
+    }
+
+    public FileInfo createFileInfoFrom(GitFile gitFile) {
+        List<FileInfo> files = null;
+        if (gitFile.getType().equals(GitFile.TYPE_DIRECTORY)) {
+            files = new ArrayList<>();
+            for (var child : gitFile.getFiles().values()) {
+                if (child.getName().startsWith(".git"))
+                    continue;
+
+                files.add(createFileInfoFrom(child));
+            }
+        }
+
+        CommitInfo commitInfo = null;
+        var lastCommit = gitFile.getLastCommit();
+        if (lastCommit != null)
+            commitInfo = createCommitInfoFrom(lastCommit);
+
+        return new FileInfo(gitFile.getName(), gitFile.getType(), files, commitInfo);
     }
 }

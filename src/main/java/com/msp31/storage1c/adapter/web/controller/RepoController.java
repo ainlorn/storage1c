@@ -53,6 +53,11 @@ public class RepoController {
         return ok(repoService.pushFile(request));
     }
 
+    @GetMapping(path = "/repos/{id}/files")
+    public ResponseModel<FileTreeInfo> listFiles(@PathVariable long id) {
+        return ok(repoService.listFiles(id));
+    }
+
     @GetMapping(path = "/repos/{id}/files/{*path}")
     public ResponseModel<FileDownloadInfo> requestFileDownload(@PathVariable long id,
                                                                @PathVariable @Valid @ValidPath String path,

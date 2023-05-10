@@ -21,4 +21,5 @@ public interface RepoService {
     CommitInfo deleteFile(long repoId, String path);
     FileDownloadInfo prepareFileDownload(long repoId, String path, String rev);
     void writeBlobToOutputStream(long repoId, String blobKey, OutputStream outputStream);
+    FileTreeInfo listFiles(long repoId);
 }
