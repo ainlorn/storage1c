@@ -64,6 +64,6 @@ public class GitRepository implements AutoCloseable {
 
     @Override
     public void close() {
-        git.close();
+        git.getRepository().close();
     }
 }
