@@ -22,7 +22,7 @@ public class UserRegistrationRequest {
     String email;
 
     @Length(min=3, max=100)
-    @Pattern(regexp = "^[a-zA-Z0-9а-яА-Я- ]*$")
+    @Pattern(regexp = "^[a-zA-Z0-9а-яА-Я- .]*$")
     @NotEmpty
     String fullName;
 
