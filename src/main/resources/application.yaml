@@ -1,3 +1,7 @@
+server:
+  address: ${LISTEN_ADDRESS:127.0.0.1}
+  port: ${LISTEN_PORT:8080}
+
 spring:
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DB_NAME:storage1c}
