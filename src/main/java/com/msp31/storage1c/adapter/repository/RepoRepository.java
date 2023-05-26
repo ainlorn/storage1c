@@ -15,6 +15,8 @@ public interface RepoRepository extends JpaRepository<Repo, Long> {
             "WHERE ru.user_id=?1", nativeQuery = true)
     List<Repo> findAllByUserHasAccess(long userId);
 
+    List<Repo> findAllByDefaultAccessLevel_Name(String name);
+
     Optional<Repo> findByOwnerAndName(User owner, String name);
 
     Optional<Repo> findByOwnerUsernameAndName(String ownerUsername, String repoName);

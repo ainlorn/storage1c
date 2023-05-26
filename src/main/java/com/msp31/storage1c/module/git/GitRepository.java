@@ -139,6 +139,23 @@ public class GitRepository implements AutoCloseable {
         });
     }
 
+    public List<GitCommit> listCommitsForFile(String path) {
+        if (path.startsWith("/"))
+            path = path.substring(1);
+
+        String finalPath = path;
+        return runWrapped(() -> {
+            var repository = git.getRepository();
+            var head = repository.resolve("HEAD^0");
+            var iterable = git.log().add(head).addPath(finalPath).call();
+            var result = new ArrayList<GitCommit>();
+            for (RevCommit revCommit : iterable) {
+                result.add(GitCommit.fromRevCommit(revCommit));
+;           }
+            return result;
+        });
+    }
+
     @Override
     public void close() {
         git.getRepository().close();

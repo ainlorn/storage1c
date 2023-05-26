@@ -22,4 +22,6 @@ public interface RepoService {
     FileDownloadInfo prepareFileDownload(long repoId, String path, String rev);
     void writeBlobToOutputStream(long repoId, String blobKey, OutputStream outputStream);
     FileTreeInfo listFiles(long repoId);
+    List<CommitInfo> listCommitsForFile(long repoId, String path);
+    List<RepoInfo> getAllPublicRepos();
 }

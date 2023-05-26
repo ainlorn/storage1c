@@ -33,6 +33,13 @@ public class RepoController {
 
     RepoService repoService;
 
+    /**
+     * Получить список публичных репозиториев
+     */
+    @GetMapping("/repos")
+    public ResponseModel<List<RepoInfo>> getPublicRepos() {
+        return ok(repoService.getAllPublicRepos());
+    }
 
     /**
      * Создать репозиторий
@@ -49,6 +56,17 @@ public class RepoController {
     @GetMapping("/repos/{id}")
     public ResponseModel<RepoInfoResponse> getRepoInfo(@PathVariable long id) {
         return ok(repoService.getRepoInfo(id));
+    }
+
+    /**
+     * Получить список коммитов для файла
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     */
+    @GetMapping("/repos/{id}/commits/{*path}")
+    public ResponseModel<List<CommitInfo>> getCommitsForFile(@PathVariable long id,
+                                                       @PathVariable @Valid @ValidPath String path) {
+        return ok(repoService.listCommitsForFile(id, path));
     }
 
     /**

@@ -39,6 +39,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class RepoServiceImpl implements RepoService {
     static final String ownerAccessLevel = "MANAGER";
+    static final String viewAccessLevel = "VIEWER";
 
     GitProperties gitProperties;
     UserRepository userRepository;
@@ -255,6 +256,21 @@ public class RepoServiceImpl implements RepoService {
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
             return repoMapper.createFileTreeInfoFrom(gitRepo.listFiles());
         }
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public List<CommitInfo> listCommitsForFile(long repoId, String path) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            return gitRepo.listCommitsForFile(path).stream().map(repoMapper::createCommitInfoFrom).toList();
+        }
+    }
+
+    @Override
+    public List<RepoInfo> getAllPublicRepos() {
+        var repos = repoRepository.findAllByDefaultAccessLevel_Name(viewAccessLevel);
+        return repos.stream().map(repoMapper::createRepoInfoFrom).toList();
     }
 
 
