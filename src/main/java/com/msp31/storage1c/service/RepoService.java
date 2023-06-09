@@ -1,6 +1,7 @@
 package com.msp31.storage1c.service;
 
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
+import com.msp31.storage1c.domain.dto.request.PatchRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
 import com.msp31.storage1c.domain.dto.response.*;
 
@@ -9,6 +10,7 @@ import java.util.List;
 
 public interface RepoService {
     RepoInfoResponse createRepo(CreateRepoRequest request);
+    RepoInfo patchRepo(long repoId, PatchRepoRequest request);
     RepoAccessLevelInfo getAccessLevel(long repoId);
     RepoInfoResponse getRepoInfo(long repoId);
     long getRepoId(String owner, String repoName);
@@ -24,4 +26,7 @@ public interface RepoService {
     FileTreeInfo listFiles(long repoId);
     List<CommitInfo> listCommitsForFile(long repoId, String path);
     List<RepoInfo> getAllPublicRepos();
+    TagListResponse getTagsForRepo(long repoId);
+    TagListResponse addTag(long repoId, String tag);
+    TagListResponse removeTag(long repoId, String tag);
 }

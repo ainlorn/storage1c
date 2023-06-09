@@ -1,17 +1,17 @@
 package com.msp31.storage1c.service.impl;
 
-import com.msp31.storage1c.adapter.repository.RepoAccessLevelRepository;
-import com.msp31.storage1c.adapter.repository.RepoRepository;
-import com.msp31.storage1c.adapter.repository.RepoUserAccessRepository;
-import com.msp31.storage1c.adapter.repository.UserRepository;
+import com.msp31.storage1c.adapter.repository.*;
 import com.msp31.storage1c.common.exception.*;
 import com.msp31.storage1c.config.properties.GitProperties;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
+import com.msp31.storage1c.domain.dto.request.PatchRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.repo.Repo;
 import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
+import com.msp31.storage1c.domain.entity.repo.RepoTag;
 import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
+import com.msp31.storage1c.domain.entity.repo.model.RepoTagModel;
 import com.msp31.storage1c.domain.entity.repo.model.RepoUserAccessModel;
 import com.msp31.storage1c.domain.mapper.RepoMapper;
 import com.msp31.storage1c.domain.mapper.UserMapper;
@@ -32,6 +32,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service("repoService")
 @Transactional
@@ -47,6 +48,7 @@ public class RepoServiceImpl implements RepoService {
     RepoRepository repoRepository;
     RepoAccessLevelRepository repoAccessLevelRepository;
     RepoUserAccessRepository repoUserAccessRepository;
+    RepoTagRepository repoTagRepository;
     RepoMapper repoMapper;
     Git git;
 
@@ -75,6 +77,32 @@ public class RepoServiceImpl implements RepoService {
         }
 
         return repoMapper.createRepoInfoResponseFrom(repo, accessLevel);
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
+    public RepoInfo patchRepo(long repoId, PatchRepoRequest request) {
+        var repo = repoRepository.getReferenceById(repoId);
+        var currentUser = userRepository.getCurrentUser();
+
+        if (request.getIsPrivate() != null) {
+            if (!Objects.equals(repo.getOwner().getId(), currentUser.getId()))
+                throw new AccessDeniedException(); // only owner can change repository access level
+
+            var newAccessLevel = repoMapper.findAccessLevelBy(request.getIsPrivate());
+            repo.setDefaultAccessLevel(newAccessLevel);
+        }
+
+        if (request.getDescription() != null) {
+            repo.setDescription(request.getDescription());
+        }
+
+        if (request.getRepoName() != null) {
+            repo.setName(request.getRepoName());
+        }
+
+        repo = repoRepository.save(repo);
+        return repoMapper.createRepoInfoFrom(repo);
     }
 
     @Override
@@ -271,6 +299,40 @@ public class RepoServiceImpl implements RepoService {
     public List<RepoInfo> getAllPublicRepos() {
         var repos = repoRepository.findAllByDefaultAccessLevel_Name(viewAccessLevel);
         return repos.stream().map(repoMapper::createRepoInfoFrom).toList();
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public TagListResponse getTagsForRepo(long repoId) {
+        var repo = repoRepository.getReferenceById(repoId);
+        return repoMapper.createTagListResponseFrom(repo.getTags());
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
+    public TagListResponse addTag(long repoId, String tag) {
+        var repo = repoRepository.getReferenceById(repoId);
+
+        if (repoTagRepository.findByRepoAndTag(repo, tag).isEmpty()) {
+            repo.addTag(RepoTag.createFromModel(new RepoTagModel(repo, tag)));
+            repo = repoRepository.save(repo);
+        }
+
+        return repoMapper.createTagListResponseFrom(repo.getTags());
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
+    public TagListResponse removeTag(long repoId, String tag) {
+        var repo = repoRepository.getReferenceById(repoId);
+
+        var tagEntity = repoTagRepository.findByRepoAndTag(repo, tag);
+        if (tagEntity.isPresent()) {
+            repo.removeTag(tagEntity.get());
+            repo = repoRepository.save(repo);
+        }
+
+        return repoMapper.createTagListResponseFrom(repo.getTags());
     }
 
 

@@ -2,9 +2,7 @@ package com.msp31.storage1c.adapter.web.controller;
 
 import com.msp31.storage1c.adapter.web.annotation.ApiV1;
 import com.msp31.storage1c.common.validation.constraint.ValidPath;
-import com.msp31.storage1c.domain.dto.request.AddUserToRepoRequest;
-import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
-import com.msp31.storage1c.domain.dto.request.PushFileRequest;
+import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.service.RepoService;
 import jakarta.validation.Valid;
@@ -50,12 +48,51 @@ public class RepoController {
     }
 
     /**
+     * Обновить настройки репозитория
+     * (необязательно передавать все поля)
+     * @param id id репозитория
+     */
+    @PatchMapping("/repos/{id}")
+    public ResponseModel<RepoInfo> patchRepo(@PathVariable long id,
+                                                     @Valid @RequestBody PatchRepoRequest request) {
+        return ok(repoService.patchRepo(id, request));
+    }
+
+    /**
      * Получить информацию о репозитории
      * @param id id репозитория
      */
     @GetMapping("/repos/{id}")
     public ResponseModel<RepoInfoResponse> getRepoInfo(@PathVariable long id) {
         return ok(repoService.getRepoInfo(id));
+    }
+
+    /**
+     * Получить список меток для репозитория
+     * @param id id репозитория
+     */
+    @GetMapping("/repos/{id}/tags")
+    public ResponseModel<TagListResponse> getTagsForRepo(@PathVariable long id) {
+        return ok(repoService.getTagsForRepo(id));
+    }
+
+    /**
+     * Добавить метку репозиторию
+     * @param id id репозитория
+     */
+    @PostMapping("/repos/{id}/tags")
+    public ResponseModel<TagListResponse> addTagToRepo(@PathVariable long id, @Valid @RequestBody TagRequest request) {
+        return ok(repoService.addTag(id, request.getTag()));
+    }
+
+    /**
+     * Удалить метку у репозитория
+     * @param id id репозитория
+     */
+    @DeleteMapping("/repos/{id}/tags")
+    public ResponseModel<TagListResponse> removeTagFromRepo(@PathVariable long id,
+                                                            @Valid @RequestBody TagRequest request) {
+        return ok(repoService.removeTag(id, request.getTag()));
     }
 
     /**

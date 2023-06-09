@@ -8,14 +8,12 @@ import lombok.Value;
 import org.hibernate.validator.constraints.Length;
 
 @Value
-public class CreateRepoRequest {
+public class PatchRepoRequest {
     @ValidRepoName
-    @NotEmpty
     String repoName;
 
     @Length(min=0, max=65536)
     String description;
 
-    @NotNull
     Boolean isPrivate;
 }

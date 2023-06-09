@@ -9,6 +9,8 @@ public class RepoModel {
 
     String name;
 
+    String description;
+
     String directoryName;
 
     User owner;

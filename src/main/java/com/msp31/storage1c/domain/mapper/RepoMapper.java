@@ -7,6 +7,7 @@ import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.account.User;
 import com.msp31.storage1c.domain.entity.repo.Repo;
 import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
+import com.msp31.storage1c.domain.entity.repo.RepoTag;
 import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
 import com.msp31.storage1c.domain.entity.repo.model.RepoModel;
 import com.msp31.storage1c.module.git.GitCommit;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -33,16 +35,21 @@ public class RepoMapper {
     UserRepository userRepository;
     RepoAccessLevelRepository repoAccessLevelRepository;
 
+    public RepoAccessLevel findAccessLevelBy(boolean isPrivate) {
+        return repoAccessLevelRepository.findByName(
+                isPrivate
+                        ? privateAccessLevelName
+                        : publicAccessLevelName
+        );
+    }
+
     public RepoModel createModelFrom(CreateRepoRequest request, User user) {
         return new RepoModel(
                 request.getRepoName(),
+                request.getDescription() != null ? request.getDescription() : "",
                 UUID.randomUUID().toString(),
                 user,
-                repoAccessLevelRepository.findByName(
-                        request.getIsPrivate()
-                                ? privateAccessLevelName
-                                : publicAccessLevelName
-                )
+                findAccessLevelBy(request.getIsPrivate())
         );
     }
 
@@ -50,6 +57,8 @@ public class RepoMapper {
         return new RepoInfo(
                 repo.getId(),
                 repo.getName(),
+                repo.getDescription(),
+                createTagListResponseFrom(repo.getTags()).getTags(),
                 userMapper.createPublicUserInfoFrom(repo.getOwner()),
                 !repo.getDefaultAccessLevel().getName().equals(privateAccessLevelName),
                 repo.getCreatedOn()
@@ -74,6 +83,10 @@ public class RepoMapper {
                 accessLevel.isCanCommit(),
                 accessLevel.isCanManage()
         );
+    }
+
+    public TagListResponse createTagListResponseFrom(Set<RepoTag> repoTags) {
+        return new TagListResponse(repoTags.stream().map(RepoTag::getTag).sorted().toList());
     }
 
     public CommitInfo createCommitInfoFrom(GitCommit gitCommit) {

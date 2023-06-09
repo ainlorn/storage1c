@@ -9,6 +9,8 @@ import java.util.List;
 public class RepoInfo {
     long id;
     String name;
+    String description;
+    List<String> tags;
     PublicUserInfo owner;
     boolean isPublic;
     Calendar createdOn;
