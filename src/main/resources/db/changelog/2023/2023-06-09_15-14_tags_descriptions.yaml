@@ -1,0 +1,227 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2023-06-09_15-14_tags_descriptions
+      author: ainlorn
+      changes:
+        - addColumn:
+            tableName: repositories
+            columns:
+              - column:
+                  name: description
+                  type: nvarchar(65536)
+                  defaultValue: ''
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: repository_files
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: repo_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repositories
+                    referencedColumnNames: id
+                    foreignKeyName: repository_files_repo_id__repositories_id__fk
+              - column:
+                  name: path
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: nvarchar(65536)
+                  defaultValue: ''
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: repository_files__repo_id__index
+            tableName: repository_files
+            clustered: false
+            unique: false
+            columns:
+              - column:
+                  name: repo_id
+        - createIndex:
+            indexName: repository_files__repo_id_path__key
+            tableName: repository_files
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: repo_id
+              - column:
+                  name: path
+        - createTable:
+            tableName: repository_tags
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: repo_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repositories
+                    referencedColumnNames: id
+                    foreignKeyName: repository_tags_repo_id__repositories_id__fk
+              - column:
+                  name: tag
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: repository_tags__repo_id__index
+            tableName: repository_tags
+            clustered: false
+            unique: false
+            columns:
+              - column:
+                  name: repo_id
+        - createIndex:
+            indexName: repository_tags__repo_id_tag__key
+            tableName: repository_tags
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: repo_id
+              - column:
+                  name: tag
+        - createTable:
+            tableName: repository_file_tags
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: file_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repository_files
+                    referencedColumnNames: id
+                    foreignKeyName: repository_file_tags_file_id__repository_files_id__fk
+              - column:
+                  name: tag
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: repository_file_tags__file_id__index
+            tableName: repository_file_tags
+            clustered: false
+            unique: false
+            columns:
+              - column:
+                  name: file_id
+        - createIndex:
+            indexName: repository_file_tags__file_id_tag__key
+            tableName: repository_file_tags
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: file_id
+              - column:
+                  name: tag
+        - createTable:
+            tableName: repository_commits
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: repo_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repositories
+                    referencedColumnNames: id
+                    foreignKeyName: repository_commits_repo_id__repositories_id__fk
+              - column:
+                  name: commit_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: repository_commits__repo_id__index
+            tableName: repository_commits
+            clustered: false
+            unique: false
+            columns:
+              - column:
+                  name: repo_id
+        - createIndex:
+            indexName: repository_commits__repo_id_commit_id__key
+            tableName: repository_commits
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: repo_id
+              - column:
+                  name: commit_id
+        - createTable:
+            tableName: repository_commit_tags
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: commit_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    referencedTableName: repository_commits
+                    referencedColumnNames: id
+                    foreignKeyName: repository_commit_tags_file_id__repository_commits_id__fk
+              - column:
+                  name: tag
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: repository_commit_tags__commit_id__index
+            tableName: repository_commit_tags
+            clustered: false
+            unique: false
+            columns:
+              - column:
+                  name: commit_id
+        - createIndex:
+            indexName: repository_commit_tags__commit_id_tag__key
+            tableName: repository_commit_tags
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: commit_id
+              - column:
+                  name: tag
+
+
