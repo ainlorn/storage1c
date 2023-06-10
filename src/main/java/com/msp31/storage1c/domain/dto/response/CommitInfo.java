@@ -6,8 +6,8 @@ import java.util.Calendar;
 
 @Value
 public class CommitInfo {
-    public String id;
-    public String message;
-    public PublicUserInfo author;
-    public Calendar when;
+    String id;
+    String message;
+    PublicUserInfo author;
+    Calendar when;
 }
