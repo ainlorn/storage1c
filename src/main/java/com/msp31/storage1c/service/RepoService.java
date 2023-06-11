@@ -1,8 +1,6 @@
 package com.msp31.storage1c.service;
 
-import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
-import com.msp31.storage1c.domain.dto.request.PatchRepoRequest;
-import com.msp31.storage1c.domain.dto.request.PushFileRequest;
+import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
 
 import java.io.OutputStream;
@@ -31,4 +29,6 @@ public interface RepoService {
     TagListResponse removeTag(long repoId, String tag);
     FileInfo getFullFileInfo(long repoId, String path, String rev);
     CommitInfo getFullCommitInfo(long repoId, String commitId);
+    FileInfo patchFileInfo(long repoId, String path, PatchFileInfoRequest request);
+    CommitInfo patchCommitInfo(long repoId, String rev, PatchCommitInfoRequest request);
 }

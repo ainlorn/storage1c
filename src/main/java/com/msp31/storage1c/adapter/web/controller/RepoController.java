@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -118,6 +119,19 @@ public class RepoController {
     }
 
     /**
+     * Обновить информацию о коммите
+     * (необязательно передавать все поля)
+     * @param id id репозитория
+     * @param commitId id коммита
+     */
+    @PatchMapping("/repos/{id}/commitInfo/{commitId}")
+    public ResponseModel<CommitInfo> patchFileInfo(@PathVariable long id,
+                                                   @PathVariable @Valid String commitId,
+                                                   @Valid @RequestBody PatchCommitInfoRequest request) {
+        return ok(repoService.patchCommitInfo(id, commitId, request));
+    }
+
+    /**
      * Загрузить файл в репозиторий и создать коммит.
      * @param id id репозитория
      * @param path путь к файлу относительно корневой папки репозитория
@@ -166,6 +180,19 @@ public class RepoController {
                                                                @PathVariable @Valid @ValidPath String path,
                                                                @RequestParam(defaultValue = "HEAD") String rev) {
         return ok(repoService.getFullFileInfo(id, path, rev));
+    }
+
+    /**
+     * Обновить информацию о файле
+     * (необязательно передавать все поля)
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     */
+    @PatchMapping("/repos/{id}/files/{*path}")
+    public ResponseModel<FileInfo> patchFileInfo(@PathVariable long id,
+                                                 @PathVariable @Valid @ValidPath String path,
+                                                 @Valid @RequestBody PatchFileInfoRequest request) {
+        return ok(repoService.patchFileInfo(id, path, request));
     }
 
     /**

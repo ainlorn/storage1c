@@ -3,9 +3,7 @@ package com.msp31.storage1c.service.impl;
 import com.msp31.storage1c.adapter.repository.*;
 import com.msp31.storage1c.common.exception.*;
 import com.msp31.storage1c.config.properties.GitProperties;
-import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
-import com.msp31.storage1c.domain.dto.request.PatchRepoRequest;
-import com.msp31.storage1c.domain.dto.request.PushFileRequest;
+import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.repo.*;
 import com.msp31.storage1c.domain.entity.repo.model.*;
@@ -20,7 +18,6 @@ import com.msp31.storage1c.utils.PathNormalizer;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +28,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service("repoService")
 @Transactional
@@ -382,16 +378,11 @@ public class RepoServiceImpl implements RepoService {
     public FileInfo getFullFileInfo(long repoId, String path, String rev) {
         var dbRepo = repoRepository.getReferenceById(repoId);
         GitFile gitFile;
-        FileDownloadInfo downloadInfo = null;
+        FileDownloadInfo downloadInfo;
 
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
             gitFile = gitRepo.getFileInfo(path, rev);
-
-            if (gitFile.getType().equals(GitFile.TYPE_FILE)) {
-                var blobKey = makeBlobKey(repoId, gitFile.getBlobId());
-                var downloadUrl = makeBlobDownloadUrl(repoId, blobKey, path);
-                downloadInfo = new FileDownloadInfo(downloadUrl);
-            }
+            downloadInfo = makeFileDownloadInfo(repoId, gitFile.getBlobId(), path);
         }
 
         var normalizedPath = PathNormalizer.normalize(path);
@@ -415,6 +406,63 @@ public class RepoServiceImpl implements RepoService {
         return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
 
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canCommit")
+    public FileInfo patchFileInfo(long repoId, String path, PatchFileInfoRequest request) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        GitFile gitFile;
+
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            gitFile = gitRepo.getFileInfo(path, "HEAD");
+        }
+
+        var normalizedPath = PathNormalizer.normalize(path);
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath)
+                .orElseGet(() -> RepoFile.createFromModel(new RepoFileModel(dbRepo, normalizedPath, "")));
+
+        if (request.getDescription() != null) {
+            dbFile.setDescription(request.getDescription());
+        }
+
+        if (request.getTags() != null) {
+            dbFile.getTags().clear();
+            for (var tag : request.getTags()) {
+                RepoFile finalDbFile = dbFile;
+                dbFile.addTag(repoFileTagRepository.findByFileAndTag(dbFile, tag)
+                        .orElseGet(() -> RepoFileTag.createFromModel(new RepoFileTagModel(finalDbFile, tag))));
+            }
+        }
+
+        dbFile = repoFileRepository.save(dbFile);
+        return repoMapper.createFileInfoFrom(gitFile, makeFileDownloadInfo(repoId, gitFile.getBlobId(), path), dbFile);
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canCommit")
+    public CommitInfo patchCommitInfo(long repoId, String rev, PatchCommitInfoRequest request) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        GitCommit gitCommit;
+
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            gitCommit = gitRepo.getCommit(rev);
+        }
+
+        var dbCommit = repoCommitRepository.findByRepoAndCommitId(dbRepo, gitCommit.getId())
+                .orElseGet(() -> RepoCommit.createFromModel(new RepoCommitModel(dbRepo, gitCommit.getId())));
+
+        if (request.getTags() != null) {
+            dbCommit.getTags().clear();
+            for (var tag : request.getTags()) {
+                RepoCommit finalDbCommit = dbCommit;
+                dbCommit.addTag(repoCommitTagRepository.findByCommitAndTag(dbCommit, tag)
+                        .orElseGet(() -> RepoCommitTag.createFromModel(new RepoCommitTagModel(finalDbCommit, tag))));
+            }
+        }
+
+        dbCommit = repoCommitRepository.save(dbCommit);
+        return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
+    }
+
 
 
     private String makeBlobKey(long repoId, String blobId) {
@@ -434,5 +482,14 @@ public class RepoServiceImpl implements RepoService {
                 blobKey,
                 filePath.substring(filePath.lastIndexOf('/') + 1)
         );
+    }
+
+    private FileDownloadInfo makeFileDownloadInfo(long repoId, String blobId, String path) {
+        if (blobId == null)
+            return null;
+
+        var blobKey = makeBlobKey(repoId, blobId);
+        var downloadUrl = makeBlobDownloadUrl(repoId, blobKey, path);
+        return new FileDownloadInfo(downloadUrl);
     }
 }
