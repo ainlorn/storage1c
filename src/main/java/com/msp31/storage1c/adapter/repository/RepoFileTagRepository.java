@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface RepoFileTagRepository extends JpaRepository<RepoFileTag, Long> {
-    Optional<RepoFileTag> findByFileAndTag(RepoFile file, String path);
+    Optional<RepoFileTag> findByFileAndTag(RepoFile file, String tag);
 }

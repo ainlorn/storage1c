@@ -96,6 +96,15 @@ public class RepoServiceImpl implements RepoService {
             repo.setDefaultAccessLevel(newAccessLevel);
         }
 
+        if (request.getTags() != null) {
+            repo.getTags().clear();
+            for (var tag : request.getTags()) {
+                Repo finalRepo = repo;
+                repo.addTag(repoTagRepository.findByRepoAndTag(repo, tag)
+                        .orElseGet(() -> RepoTag.createFromModel(new RepoTagModel(finalRepo, tag))));
+            }
+        }
+
         if (request.getDescription() != null) {
             repo.setDescription(request.getDescription());
         }
@@ -249,8 +258,8 @@ public class RepoServiceImpl implements RepoService {
         if (request.getFileTags() != null) {
             dbFile.getTags().clear();
             for (var tag : request.getFileTags()) {
-                var dbTag = RepoFileTag.createFromModel(new RepoFileTagModel(dbFile, tag));
-                dbFile.addTag(dbTag);
+                dbFile.addTag(repoFileTagRepository.findByFileAndTag(dbFile, tag)
+                        .orElseGet(() -> RepoFileTag.createFromModel(new RepoFileTagModel(dbFile, tag))));
             }
         }
         repoFileRepository.save(dbFile);
