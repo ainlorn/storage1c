@@ -254,11 +254,14 @@ public class RepoServiceImpl implements RepoService {
         if (request.getFileTags() != null) {
             dbFile.getTags().clear();
             for (var tag : request.getFileTags()) {
-                dbFile.addTag(repoFileTagRepository.findByFileAndTag(dbFile, tag)
-                        .orElseGet(() -> RepoFileTag.createFromModel(new RepoFileTagModel(dbFile, tag))));
+                var newTag = RepoFileTag.createFromModel(new RepoFileTagModel(dbFile, tag));
+                if (dbFile.getId() == null)
+                    dbFile.addTag(newTag);
+                else
+                    dbFile.addTag(repoFileTagRepository.findByFileAndTag(dbFile, tag).orElse(newTag));
             }
         }
-        repoFileRepository.save(dbFile);
+        dbFile = repoFileRepository.save(dbFile);
 
         var dbCommit = RepoCommit.createFromModel(new RepoCommitModel(dbRepo, gitCommit.getId()));
         if (request.getCommitTags() != null) {
@@ -267,7 +270,7 @@ public class RepoServiceImpl implements RepoService {
                 dbCommit.addTag(dbTag);
             }
         }
-        repoCommitRepository.save(dbCommit);
+        dbCommit = repoCommitRepository.save(dbCommit);
 
         return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
