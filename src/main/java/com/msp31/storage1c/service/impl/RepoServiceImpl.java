@@ -65,6 +65,13 @@ public class RepoServiceImpl implements RepoService {
         var accessLevel = repoAccessLevelRepository.findByName(ownerAccessLevel);
         var userAccessModel = new RepoUserAccessModel(repo, currentUser, accessLevel);
         repo.addUser(RepoUserAccess.createFromModel(userAccessModel));
+
+        if (request.getTags() != null) {
+            for (var tag : request.getTags()) {
+                repo.addTag(RepoTag.createFromModel(new RepoTagModel(repo, tag)));
+            }
+        }
+
         repo = repoRepository.save(repo);
 
         try (var gitRepo = git.createRepository(repo.getDirectoryName())) {
