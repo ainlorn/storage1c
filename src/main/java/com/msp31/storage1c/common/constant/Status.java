@@ -32,7 +32,8 @@ public enum Status {
     TARGET_FILE_IS_A_DIRECTORY(205, 400, "Целевой файл является директорией"),
     NEW_VERSION_IS_IDENTICAL_TO_PREVIOUS(206, 400, "Новая версия файла идентична предыдущей"),
     FILE_NOT_FOUND(207, 404, "Файл не найден"),
-    COMMIT_NOT_FOUND(208, 404, "Коммит не найден");
+    COMMIT_NOT_FOUND(208, 404, "Коммит не найден"),
+    INVALID_TAG_LIST(209, 400, "Некорректный список меток");
 
     int code;
     int httpCode;

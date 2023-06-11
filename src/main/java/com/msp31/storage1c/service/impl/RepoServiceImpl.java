@@ -7,17 +7,16 @@ import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PatchRepoRequest;
 import com.msp31.storage1c.domain.dto.request.PushFileRequest;
 import com.msp31.storage1c.domain.dto.response.*;
-import com.msp31.storage1c.domain.entity.repo.Repo;
-import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
-import com.msp31.storage1c.domain.entity.repo.RepoTag;
-import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
-import com.msp31.storage1c.domain.entity.repo.model.RepoTagModel;
-import com.msp31.storage1c.domain.entity.repo.model.RepoUserAccessModel;
+import com.msp31.storage1c.domain.entity.repo.*;
+import com.msp31.storage1c.domain.entity.repo.model.*;
 import com.msp31.storage1c.domain.mapper.RepoMapper;
 import com.msp31.storage1c.domain.mapper.UserMapper;
 import com.msp31.storage1c.module.git.Git;
+import com.msp31.storage1c.module.git.GitCommit;
+import com.msp31.storage1c.module.git.GitFile;
 import com.msp31.storage1c.service.RepoService;
 import com.msp31.storage1c.utils.Hex;
+import com.msp31.storage1c.utils.PathNormalizer;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -49,6 +48,10 @@ public class RepoServiceImpl implements RepoService {
     RepoAccessLevelRepository repoAccessLevelRepository;
     RepoUserAccessRepository repoUserAccessRepository;
     RepoTagRepository repoTagRepository;
+    RepoCommitRepository repoCommitRepository;
+    RepoCommitTagRepository repoCommitTagRepository;
+    RepoFileRepository repoFileRepository;
+    RepoFileTagRepository repoFileTagRepository;
     RepoMapper repoMapper;
     Git git;
 
@@ -227,14 +230,41 @@ public class RepoServiceImpl implements RepoService {
     public CommitInfo pushFile(PushFileRequest request) {
         var dbRepo = repoRepository.getReferenceById(request.getRepoId());
         var user = userRepository.getCurrentUser();
+        GitCommit gitCommit;
+
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
-            var gitCommit = gitRepo.newCommit()
+            gitCommit = gitRepo.newCommit()
                     .addFile(request.getPath(), request.getFileStream())
                     .setAuthor(userMapper.createGitIdentityFrom(user))
                     .setMessage(request.getMessage())
                     .commit();
-            return repoMapper.createCommitInfoFrom(gitCommit);
         }
+
+        var normalizedPath = PathNormalizer.normalize(request.getPath());
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath)
+                .orElseGet(() -> RepoFile.createFromModel(new RepoFileModel(dbRepo, normalizedPath, "")));
+        if (request.getFileDescription() != null)
+            dbFile.setDescription(request.getFileDescription());
+
+        if (request.getFileTags() != null) {
+            dbFile.getTags().clear();
+            for (var tag : request.getFileTags()) {
+                var dbTag = RepoFileTag.createFromModel(new RepoFileTagModel(dbFile, tag));
+                dbFile.addTag(dbTag);
+            }
+        }
+        repoFileRepository.save(dbFile);
+
+        var dbCommit = RepoCommit.createFromModel(new RepoCommitModel(dbRepo, gitCommit.getId()));
+        if (request.getCommitTags() != null) {
+            for (var tag : request.getCommitTags()) {
+                var dbTag = RepoCommitTag.createFromModel(new RepoCommitTagModel(dbCommit, tag));
+                dbCommit.addTag(dbTag);
+            }
+        }
+        repoCommitRepository.save(dbCommit);
+
+        return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
 
     @Override
@@ -248,7 +278,7 @@ public class RepoServiceImpl implements RepoService {
                     .setAuthor(userMapper.createGitIdentityFrom(user))
                     .setMessage("Удалён файл '%s'".formatted(path))
                     .commit();
-            return repoMapper.createCommitInfoFrom(gitCommit);
+            return repoMapper.createCommitInfoFrom(gitCommit, dbRepo);
         }
     }
 
@@ -291,7 +321,10 @@ public class RepoServiceImpl implements RepoService {
     public List<CommitInfo> listCommitsForFile(long repoId, String path) {
         var dbRepo = repoRepository.getReferenceById(repoId);
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
-            return gitRepo.listCommitsForFile(path).stream().map(repoMapper::createCommitInfoFrom).toList();
+            return gitRepo.listCommitsForFile(path)
+                    .stream()
+                    .map((commit) -> repoMapper.createCommitInfoFrom(commit, dbRepo))
+                    .toList();
         }
     }
 
@@ -333,6 +366,43 @@ public class RepoServiceImpl implements RepoService {
         }
 
         return repoMapper.createTagListResponseFrom(repo.getTags());
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public FileInfo getFullFileInfo(long repoId, String path, String rev) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        GitFile gitFile;
+        FileDownloadInfo downloadInfo = null;
+
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            gitFile = gitRepo.getFileInfo(path, rev);
+
+            if (gitFile.getType().equals(GitFile.TYPE_FILE)) {
+                var blobKey = makeBlobKey(repoId, gitFile.getBlobId());
+                var downloadUrl = makeBlobDownloadUrl(repoId, blobKey, path);
+                downloadInfo = new FileDownloadInfo(downloadUrl);
+            }
+        }
+
+        var normalizedPath = PathNormalizer.normalize(path);
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath).orElse(null);
+
+        return repoMapper.createFileInfoFrom(gitFile, downloadInfo, dbFile);
+    }
+
+    @Override
+    public CommitInfo getFullCommitInfo(long repoId, String commitId) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        GitCommit gitCommit;
+
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            gitCommit = gitRepo.getCommit(commitId);
+        }
+
+        var dbCommit = repoCommitRepository.findByRepoAndCommitId(dbRepo, commitId).orElse(null);
+
+        return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
 
 

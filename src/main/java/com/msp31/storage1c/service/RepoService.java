@@ -29,4 +29,6 @@ public interface RepoService {
     TagListResponse getTagsForRepo(long repoId);
     TagListResponse addTag(long repoId, String tag);
     TagListResponse removeTag(long repoId, String tag);
+    FileInfo getFullFileInfo(long repoId, String path, String rev);
+    CommitInfo getFullCommitInfo(long repoId, String commitId);
 }

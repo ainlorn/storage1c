@@ -6,6 +6,7 @@ import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.service.RepoService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -107,18 +108,41 @@ public class RepoController {
     }
 
     /**
+     * Получить подробную информацию о коммите
+     * @param id id репозитория
+     * @param commitId id коммита
+     */
+    @GetMapping("/repos/{id}/commitInfo/{commitId}")
+    public ResponseModel<CommitInfo> getFullCommitInfo(@PathVariable long id, @PathVariable String commitId) {
+        return ok(repoService.getFullCommitInfo(id, commitId));
+    }
+
+    /**
      * Загрузить файл в репозиторий и создать коммит.
      * @param id id репозитория
      * @param path путь к файлу относительно корневой папки репозитория
      * @param message сообщение коммита
+     * @param fileDescription описание файла (если файл существует и этот параметр передан, то описание перезаписывется) (необязательно)
+     * @param fileTags список меток файла, разделяемых ';' (если файл существует и этот параметр передан, то все предыдущие метки удаляются) (необязательно)
+     * @param commitTags список меток коммита, разделяемых ';' (необязательно)
      * @param file файл
      */
     @PostMapping(path = "/repos/{id}/files", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseModel<CommitInfo> pushFile(@PathVariable long id,
                                               @RequestPart @Valid @ValidPath String path,
-                                              @RequestPart String message,
+                                              @RequestPart @Valid @Size(max=65536) String message,
+                                              @RequestPart(required = false) String fileDescription,
+                                              @RequestPart(required = false) String fileTags,
+                                              @RequestPart(required = false) String commitTags,
                                               @RequestPart MultipartFile file) throws IOException {
-        var request = new PushFileRequest(id, path, message, file.getInputStream());
+        var request = new PushFileRequest(
+                id,
+                path,
+                message,
+                fileDescription,
+                fileTags,
+                commitTags,
+                file.getInputStream());
         return ok(repoService.pushFile(request));
     }
 
@@ -132,16 +156,16 @@ public class RepoController {
     }
 
     /**
-     * Получить ссылку на загрузку файла из репозитория
+     * Получить подробную информацию о файле (вкл. ссылку на загрузку файла из репозитория)
      * @param id id репозитория
      * @param path путь к файлу относительно корневой папки репозитория
      * @param rev версия файла (id коммита)
      */
     @GetMapping(path = "/repos/{id}/files/{*path}")
-    public ResponseModel<FileDownloadInfo> requestFileDownload(@PathVariable long id,
+    public ResponseModel<FileInfo> requestFileDownload(@PathVariable long id,
                                                                @PathVariable @Valid @ValidPath String path,
                                                                @RequestParam(defaultValue = "HEAD") String rev) {
-        return ok(repoService.prepareFileDownload(id, path, rev));
+        return ok(repoService.getFullFileInfo(id, path, rev));
     }
 
     /**

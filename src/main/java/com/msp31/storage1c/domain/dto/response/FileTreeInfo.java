@@ -6,5 +6,13 @@ import java.util.List;
 
 @Value
 public class FileTreeInfo {
-    List<FileInfo> files;
+    List<FileTreeInfo.File> files;
+
+    @Value
+    public static class File {
+        String name;
+        String type;
+        List<FileTreeInfo.File> files;
+        CommitInfoShort lastCommit;
+    }
 }

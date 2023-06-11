@@ -1,14 +1,12 @@
 package com.msp31.storage1c.domain.mapper;
 
 import com.msp31.storage1c.adapter.repository.RepoAccessLevelRepository;
+import com.msp31.storage1c.adapter.repository.RepoCommitRepository;
 import com.msp31.storage1c.adapter.repository.UserRepository;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.account.User;
-import com.msp31.storage1c.domain.entity.repo.Repo;
-import com.msp31.storage1c.domain.entity.repo.RepoAccessLevel;
-import com.msp31.storage1c.domain.entity.repo.RepoTag;
-import com.msp31.storage1c.domain.entity.repo.RepoUserAccess;
+import com.msp31.storage1c.domain.entity.repo.*;
 import com.msp31.storage1c.domain.entity.repo.model.RepoModel;
 import com.msp31.storage1c.module.git.GitCommit;
 import com.msp31.storage1c.module.git.GitFile;
@@ -22,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -34,6 +31,7 @@ public class RepoMapper {
     UserMapper userMapper;
     UserRepository userRepository;
     RepoAccessLevelRepository repoAccessLevelRepository;
+    RepoCommitRepository repoCommitRepository;
 
     public RepoAccessLevel findAccessLevelBy(boolean isPrivate) {
         return repoAccessLevelRepository.findByName(
@@ -89,7 +87,12 @@ public class RepoMapper {
         return new TagListResponse(repoTags.stream().map(RepoTag::getTag).sorted().toList());
     }
 
-    public CommitInfo createCommitInfoFrom(GitCommit gitCommit) {
+    public CommitInfo createCommitInfoFrom(GitCommit gitCommit, Repo repo) {
+        var repoCommit = repoCommitRepository.findByRepoAndCommitId(repo, gitCommit.getId());
+        return createCommitInfoFrom(gitCommit, repoCommit.orElse(null));
+    }
+
+    public CommitInfo createCommitInfoFrom(GitCommit gitCommit, RepoCommit repoCommit) {
         var authorIdentity = gitCommit.getAuthor();
         var author = userRepository.findByEmail(authorIdentity.getEmail());
         PublicUserInfo authorInfo = null;
@@ -99,33 +102,61 @@ public class RepoMapper {
         return new CommitInfo(
                 gitCommit.getId(),
                 gitCommit.getMessage(),
+                repoCommit == null
+                        ? new ArrayList<>()
+                        : repoCommit.getTags().stream().map(RepoCommitTag::getTag).sorted().toList(),
                 authorInfo,
                 gitCommit.getWhen()
         );
     }
 
+    public CommitInfoShort createCommitInfoShortFrom(GitCommit commit) {
+        return new CommitInfoShort(commit.getId(), commit.getMessage(), commit.getWhen());
+    }
+
     public FileTreeInfo createFileTreeInfoFrom(GitFileTree gitFileTree) {
-        var rootInfo = createFileInfoFrom(gitFileTree.getRoot());
+        var rootInfo = createFileTreeInfoFileFrom(gitFileTree.getRoot());
         return new FileTreeInfo(rootInfo.getFiles());
     }
 
-    public FileInfo createFileInfoFrom(GitFile gitFile) {
-        List<FileInfo> files = null;
-        if (gitFile.getType().equals(GitFile.TYPE_DIRECTORY)) {
+    public FileTreeInfo.File createFileTreeInfoFileFrom(GitFileTree.File gitFile) {
+        List<FileTreeInfo.File> files = null;
+        if (gitFile.getType().equals(GitFileTree.File.TYPE_DIRECTORY)) {
             files = new ArrayList<>();
             for (var child : gitFile.getFiles().values()) {
                 if (child.getName().startsWith(".git"))
                     continue;
 
-                files.add(createFileInfoFrom(child));
+                files.add(createFileTreeInfoFileFrom(child));
             }
         }
 
-        CommitInfo commitInfo = null;
+        CommitInfoShort commitInfo = null;
         var lastCommit = gitFile.getLastCommit();
         if (lastCommit != null)
-            commitInfo = createCommitInfoFrom(lastCommit);
+            commitInfo = createCommitInfoShortFrom(lastCommit);
 
-        return new FileInfo(gitFile.getName(), gitFile.getType(), files, commitInfo);
+        return new FileTreeInfo.File(gitFile.getName(), gitFile.getType(), files, commitInfo);
+    }
+
+    public FileInfo createFileInfoFrom(GitFile gitFile, FileDownloadInfo fileDownloadInfo, RepoFile repoFile) {
+        String description = "";
+        List<String> tags = new ArrayList<>();
+
+        if (repoFile != null) {
+            description = repoFile.getDescription();
+            tags = repoFile.getTags()
+                    .stream()
+                    .map(RepoFileTag::getTag)
+                    .sorted().toList();
+        }
+
+        return new FileInfo(
+                gitFile.getName(),
+                gitFile.getType(),
+                description,
+                fileDownloadInfo,
+                tags
+        );
     }
 }

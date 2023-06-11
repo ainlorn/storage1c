@@ -8,6 +8,7 @@ import java.util.List;
 public class FileInfo {
     String name;
     String type;
-    List<FileInfo> files;
-    CommitInfo lastCommit;
+    String description;
+    FileDownloadInfo download;
+    List<String> tags;
 }

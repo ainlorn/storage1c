@@ -1,12 +1,13 @@
 package com.msp31.storage1c.domain.dto.request;
 
+import com.msp31.storage1c.common.constant.RegexConstants;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import org.hibernate.validator.constraints.Length;
 
 public class TagRequest {
     @Length(min=1, max=255)
-    @Pattern(regexp = "^[a-zA-Z0-9а-яА-Я-_(): ]*$")
+    @Pattern(regexp = RegexConstants.TAG_REGEX)
     @NotEmpty
     private String tag;
 
