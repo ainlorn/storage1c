@@ -341,40 +341,6 @@ public class RepoServiceImpl implements RepoService {
 
     @Override
     @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
-    public TagListResponse getTagsForRepo(long repoId) {
-        var repo = repoRepository.getReferenceById(repoId);
-        return repoMapper.createTagListResponseFrom(repo.getTags());
-    }
-
-    @Override
-    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
-    public TagListResponse addTag(long repoId, String tag) {
-        var repo = repoRepository.getReferenceById(repoId);
-
-        if (repoTagRepository.findByRepoAndTag(repo, tag).isEmpty()) {
-            repo.addTag(RepoTag.createFromModel(new RepoTagModel(repo, tag)));
-            repo = repoRepository.save(repo);
-        }
-
-        return repoMapper.createTagListResponseFrom(repo.getTags());
-    }
-
-    @Override
-    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
-    public TagListResponse removeTag(long repoId, String tag) {
-        var repo = repoRepository.getReferenceById(repoId);
-
-        var tagEntity = repoTagRepository.findByRepoAndTag(repo, tag);
-        if (tagEntity.isPresent()) {
-            repo.removeTag(tagEntity.get());
-            repo = repoRepository.save(repo);
-        }
-
-        return repoMapper.createTagListResponseFrom(repo.getTags());
-    }
-
-    @Override
-    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
     public FileInfo getFullFileInfo(long repoId, String path, String rev) {
         var dbRepo = repoRepository.getReferenceById(repoId);
         GitFile gitFile;
@@ -427,9 +393,11 @@ public class RepoServiceImpl implements RepoService {
         if (request.getTags() != null) {
             dbFile.getTags().clear();
             for (var tag : request.getTags()) {
-                RepoFile finalDbFile = dbFile;
-                dbFile.addTag(repoFileTagRepository.findByFileAndTag(dbFile, tag)
-                        .orElseGet(() -> RepoFileTag.createFromModel(new RepoFileTagModel(finalDbFile, tag))));
+                var newTag = RepoFileTag.createFromModel(new RepoFileTagModel(dbFile, tag));
+                if (dbFile.getId() == null)
+                    dbFile.addTag(newTag);
+                else
+                    dbFile.addTag(repoFileTagRepository.findByFileAndTag(dbFile, tag).orElse(newTag));
             }
         }
 
@@ -453,9 +421,11 @@ public class RepoServiceImpl implements RepoService {
         if (request.getTags() != null) {
             dbCommit.getTags().clear();
             for (var tag : request.getTags()) {
-                RepoCommit finalDbCommit = dbCommit;
-                dbCommit.addTag(repoCommitTagRepository.findByCommitAndTag(dbCommit, tag)
-                        .orElseGet(() -> RepoCommitTag.createFromModel(new RepoCommitTagModel(finalDbCommit, tag))));
+                var newTag = RepoCommitTag.createFromModel(new RepoCommitTagModel(dbCommit, tag));
+                if (dbCommit.getId() == null)
+                    dbCommit.addTag(newTag);
+                else
+                    dbCommit.addTag(repoCommitTagRepository.findByCommitAndTag(dbCommit, tag).orElse(newTag));
             }
         }
 

@@ -87,6 +87,14 @@ public class RepoMapper {
         return new TagListResponse(repoTags.stream().map(RepoTag::getTag).sorted().toList());
     }
 
+    public TagListResponse createFileTagListResponseFrom(Set<RepoFileTag> repoFileTags) {
+        return new TagListResponse(repoFileTags.stream().map(RepoFileTag::getTag).sorted().toList());
+    }
+
+    public TagListResponse createCommitTagListResponseFrom(Set<RepoCommitTag> repoCommitTags) {
+        return new TagListResponse(repoCommitTags.stream().map(RepoCommitTag::getTag).sorted().toList());
+    }
+
     public CommitInfo createCommitInfoFrom(GitCommit gitCommit, Repo repo) {
         var repoCommit = repoCommitRepository.findByRepoAndCommitId(repo, gitCommit.getId());
         return createCommitInfoFrom(gitCommit, repoCommit.orElse(null));

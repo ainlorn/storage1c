@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -67,34 +66,6 @@ public class RepoController {
     @GetMapping("/repos/{id}")
     public ResponseModel<RepoInfoResponse> getRepoInfo(@PathVariable long id) {
         return ok(repoService.getRepoInfo(id));
-    }
-
-    /**
-     * Получить список меток для репозитория
-     * @param id id репозитория
-     */
-    @GetMapping("/repos/{id}/tags")
-    public ResponseModel<TagListResponse> getTagsForRepo(@PathVariable long id) {
-        return ok(repoService.getTagsForRepo(id));
-    }
-
-    /**
-     * Добавить метку репозиторию
-     * @param id id репозитория
-     */
-    @PostMapping("/repos/{id}/tags")
-    public ResponseModel<TagListResponse> addTagToRepo(@PathVariable long id, @Valid @RequestBody TagRequest request) {
-        return ok(repoService.addTag(id, request.getTag()));
-    }
-
-    /**
-     * Удалить метку у репозитория
-     * @param id id репозитория
-     */
-    @DeleteMapping("/repos/{id}/tags")
-    public ResponseModel<TagListResponse> removeTagFromRepo(@PathVariable long id,
-                                                            @Valid @RequestBody TagRequest request) {
-        return ok(repoService.removeTag(id, request.getTag()));
     }
 
     /**

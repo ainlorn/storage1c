@@ -24,9 +24,6 @@ public interface RepoService {
     FileTreeInfo listFiles(long repoId);
     List<CommitInfo> listCommitsForFile(long repoId, String path);
     List<RepoInfo> getAllPublicRepos();
-    TagListResponse getTagsForRepo(long repoId);
-    TagListResponse addTag(long repoId, String tag);
-    TagListResponse removeTag(long repoId, String tag);
     FileInfo getFullFileInfo(long repoId, String path, String rev);
     CommitInfo getFullCommitInfo(long repoId, String commitId);
     FileInfo patchFileInfo(long repoId, String path, PatchFileInfoRequest request);
