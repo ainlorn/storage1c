@@ -401,6 +401,7 @@ public class RepoServiceImpl implements RepoService {
     }
 
     @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
     public CommitInfo getFullCommitInfo(long repoId, String commitId) {
         var dbRepo = repoRepository.getReferenceById(repoId);
         GitCommit gitCommit;
