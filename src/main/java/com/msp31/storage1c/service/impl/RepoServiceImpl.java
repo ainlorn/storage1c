@@ -252,9 +252,7 @@ public class RepoServiceImpl implements RepoService {
                     .commit();
         }
 
-        var normalizedPath = PathNormalizer.normalize(request.getPath());
-        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath)
-                .orElseGet(() -> RepoFile.createFromModel(new RepoFileModel(dbRepo, normalizedPath, "")));
+        var dbFile = createOrFindDbFile(dbRepo, request.getPath());
         if (request.getFileDescription() != null)
             dbFile.setDescription(request.getFileDescription());
 
@@ -287,14 +285,21 @@ public class RepoServiceImpl implements RepoService {
     public CommitInfo deleteFile(long repoId, String path) {
         var dbRepo = repoRepository.getReferenceById(repoId);
         var user = userRepository.getCurrentUser();
+        CommitInfo commitInfo;
+
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
             var gitCommit = gitRepo.newCommit()
                     .deleteFile(path)
                     .setAuthor(userMapper.createGitIdentityFrom(user))
                     .setMessage("Удалён файл '%s'".formatted(path))
                     .commit();
-            return repoMapper.createCommitInfoFrom(gitCommit, dbRepo);
+            commitInfo = repoMapper.createCommitInfoFrom(gitCommit, dbRepo);
         }
+
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, PathNormalizer.normalize(path));
+        dbFile.ifPresent(repoFileRepository::delete);
+
+        return commitInfo;
     }
 
     @Override
@@ -392,9 +397,8 @@ public class RepoServiceImpl implements RepoService {
             gitFile = gitRepo.getFileInfo(path, "HEAD");
         }
 
-        var normalizedPath = PathNormalizer.normalize(path);
-        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath)
-                .orElseGet(() -> RepoFile.createFromModel(new RepoFileModel(dbRepo, normalizedPath, "")));
+
+        var dbFile = createOrFindDbFile(dbRepo, path);
 
         if (request.getDescription() != null) {
             dbFile.setDescription(request.getDescription());
@@ -443,6 +447,17 @@ public class RepoServiceImpl implements RepoService {
         return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
 
+
+
+    private RepoFile createOrFindDbFile(Repo dbRepo, String path) {
+        var normalizedPath = PathNormalizer.normalize(path);
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath)
+                .orElseGet(() -> RepoFile.createFromModel(new RepoFileModel(dbRepo, normalizedPath, "")));
+
+        if (dbFile.getId() == null)
+            return repoFileRepository.save(dbFile);
+        return dbFile;
+    }
 
 
     private String makeBlobKey(long repoId, String blobId) {
