@@ -30,6 +30,8 @@ spring:
       max-request-size: 32MB
 
 storage1c:
+  file-locking:
+    enabled: false
   security:
     remember-me-key: ${REMEMBER_ME_KEY:15bd8d60-e818-4ecf-8cbf-c29bdc73189b}
   git:

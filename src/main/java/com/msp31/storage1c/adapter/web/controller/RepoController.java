@@ -103,6 +103,32 @@ public class RepoController {
     }
 
     /**
+     * Захватить файл
+     * (если завхват файлов включен в конфиге)
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     */
+    @PostMapping("/repos/{id}/lock/{*path}")
+    public ResponseModel<Object> lockFile(@PathVariable long id,
+                                          @PathVariable @Valid @ValidPath String path) {
+        repoService.lockFile(id, path);
+        return ok(null);
+    }
+
+    /**
+     * Снять захват с файла
+     * (если завхват файлов включен в конфиге)
+     * @param id id репозитория
+     * @param path путь к файлу относительно корневой папки репозитория
+     */
+    @DeleteMapping("/repos/{id}/lock/{*path}")
+    public ResponseModel<Object> unlockFile(@PathVariable long id,
+                                          @PathVariable @Valid @ValidPath String path) {
+        repoService.unlockFile(id, path);
+        return ok(null);
+    }
+
+    /**
      * Загрузить файл в репозиторий и создать коммит.
      * @param id id репозитория
      * @param path путь к файлу относительно корневой папки репозитория

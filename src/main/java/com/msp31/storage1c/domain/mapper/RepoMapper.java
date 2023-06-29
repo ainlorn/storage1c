@@ -1,8 +1,7 @@
 package com.msp31.storage1c.domain.mapper;
 
-import com.msp31.storage1c.adapter.repository.RepoAccessLevelRepository;
-import com.msp31.storage1c.adapter.repository.RepoCommitRepository;
-import com.msp31.storage1c.adapter.repository.UserRepository;
+import com.msp31.storage1c.adapter.repository.*;
+import com.msp31.storage1c.config.properties.FileLockingProperties;
 import com.msp31.storage1c.domain.dto.request.CreateRepoRequest;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.account.User;
@@ -16,10 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -32,6 +28,8 @@ public class RepoMapper {
     UserRepository userRepository;
     RepoAccessLevelRepository repoAccessLevelRepository;
     RepoCommitRepository repoCommitRepository;
+    RepoFileLockRepository repoFileLockRepository;
+    FileLockingProperties fileLockingProperties;
 
     public RepoAccessLevel findAccessLevelBy(boolean isPrivate) {
         return repoAccessLevelRepository.findByName(
@@ -122,12 +120,28 @@ public class RepoMapper {
         return new CommitInfoShort(commit.getId(), commit.getMessage(), commit.getWhen());
     }
 
-    public FileTreeInfo createFileTreeInfoFrom(GitFileTree gitFileTree) {
-        var rootInfo = createFileTreeInfoFileFrom(gitFileTree.getRoot());
-        return new FileTreeInfo(rootInfo.getFiles());
+    public FileTreeInfo createFileTreeInfoFrom(Repo dbRepo, GitFileTree gitFileTree) {
+
+        var fileMap = new HashMap<String, FileTreeInfo.File>();
+        var rootInfo = createFileTreeInfoFileFrom(gitFileTree.getRoot(), "", fileMap);
+        var result = new FileTreeInfo(rootInfo.getFiles());
+
+        if (fileLockingProperties.isEnabled()) {
+            var locks = repoFileLockRepository.findAllByFile_Repo(dbRepo);
+            for (var lock : locks) {
+                var file = fileMap.getOrDefault(lock.getFile().getPath(), null);
+                if (file != null) {
+                    file.setLocked(true);
+                }
+            }
+        }
+
+        return result;
     }
 
-    public FileTreeInfo.File createFileTreeInfoFileFrom(GitFileTree.File gitFile) {
+    private FileTreeInfo.File createFileTreeInfoFileFrom(GitFileTree.File gitFile,
+                                                         String prefix,
+                                                         Map<String, FileTreeInfo.File> fileMap) {
         List<FileTreeInfo.File> files = null;
         if (gitFile.getType().equals(GitFileTree.File.TYPE_DIRECTORY)) {
             files = new ArrayList<>();
@@ -135,7 +149,13 @@ public class RepoMapper {
                 if (child.getName().startsWith(".git"))
                     continue;
 
-                files.add(createFileTreeInfoFileFrom(child));
+                files.add(createFileTreeInfoFileFrom(
+                        child,
+                        prefix.isEmpty()
+                                ? gitFile.getName()
+                                : prefix + "/" + gitFile.getName(),
+                        fileMap
+                ));
             }
         }
 
@@ -144,12 +164,21 @@ public class RepoMapper {
         if (lastCommit != null)
             commitInfo = createCommitInfoShortFrom(lastCommit);
 
-        return new FileTreeInfo.File(gitFile.getName(), gitFile.getType(), files, commitInfo);
+        var result = new FileTreeInfo.File(
+                gitFile.getName(),
+                gitFile.getType(),
+                files,
+                commitInfo,
+                fileLockingProperties.isEnabled() ? false : null
+        );
+        fileMap.put(prefix.isEmpty() ? gitFile.getName() : prefix + "/" + gitFile.getName(), result);
+        return result;
     }
 
     public FileInfo createFileInfoFrom(GitFile gitFile, FileDownloadInfo fileDownloadInfo, RepoFile repoFile) {
         String description = "";
         List<String> tags = new ArrayList<>();
+        FileInfo.Lock lock = null;
 
         if (repoFile != null) {
             description = repoFile.getDescription();
@@ -157,6 +186,14 @@ public class RepoMapper {
                     .stream()
                     .map(RepoFileTag::getTag)
                     .sorted().toList();
+
+            if (fileLockingProperties.isEnabled()) {
+                var dbLock = repoFileLockRepository.findByFile(repoFile);
+                if (dbLock.isPresent())
+                    lock = new FileInfo.Lock(true, userMapper.createPublicUserInfoFrom(dbLock.get().getUser()));
+                else
+                    lock = new FileInfo.Lock(false, null);
+            }
         }
 
         return new FileInfo(
@@ -164,7 +201,8 @@ public class RepoMapper {
                 gitFile.getType(),
                 description,
                 fileDownloadInfo,
-                tags
+                tags,
+                lock
         );
     }
 }

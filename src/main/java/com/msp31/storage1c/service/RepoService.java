@@ -28,4 +28,6 @@ public interface RepoService {
     CommitInfo getFullCommitInfo(long repoId, String commitId);
     FileInfo patchFileInfo(long repoId, String path, PatchFileInfoRequest request);
     CommitInfo patchCommitInfo(long repoId, String rev, PatchCommitInfoRequest request);
+    void lockFile(long repoId, String path);
+    void unlockFile(long repoId, String path);
 }

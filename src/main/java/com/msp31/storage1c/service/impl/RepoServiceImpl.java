@@ -2,9 +2,11 @@ package com.msp31.storage1c.service.impl;
 
 import com.msp31.storage1c.adapter.repository.*;
 import com.msp31.storage1c.common.exception.*;
+import com.msp31.storage1c.config.properties.FileLockingProperties;
 import com.msp31.storage1c.config.properties.GitProperties;
 import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
+import com.msp31.storage1c.domain.entity.account.User;
 import com.msp31.storage1c.domain.entity.repo.*;
 import com.msp31.storage1c.domain.entity.repo.model.*;
 import com.msp31.storage1c.domain.mapper.RepoMapper;
@@ -12,12 +14,15 @@ import com.msp31.storage1c.domain.mapper.UserMapper;
 import com.msp31.storage1c.module.git.Git;
 import com.msp31.storage1c.module.git.GitCommit;
 import com.msp31.storage1c.module.git.GitFile;
+import com.msp31.storage1c.module.git.exception.GitTargetDirectoryIsAFileException;
+import com.msp31.storage1c.module.git.exception.GitTargetFileIsADirectoryException;
 import com.msp31.storage1c.service.RepoService;
 import com.msp31.storage1c.utils.Hex;
 import com.msp31.storage1c.utils.PathNormalizer;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +43,7 @@ public class RepoServiceImpl implements RepoService {
     static final String viewAccessLevel = "VIEWER";
 
     GitProperties gitProperties;
+    FileLockingProperties fileLockingProperties;
     UserRepository userRepository;
     UserMapper userMapper;
     RepoRepository repoRepository;
@@ -48,6 +54,7 @@ public class RepoServiceImpl implements RepoService {
     RepoCommitTagRepository repoCommitTagRepository;
     RepoFileRepository repoFileRepository;
     RepoFileTagRepository repoFileTagRepository;
+    RepoFileLockRepository repoFileLockRepository;
     RepoMapper repoMapper;
     Git git;
 
@@ -131,23 +138,24 @@ public class RepoServiceImpl implements RepoService {
 
     @Override
     public RepoAccessLevelInfo getAccessLevel(long repoId) {
-        return repoMapper.createRepoAccessLevelInfoFrom(getAccessLevelInternal(repoId));
+        return repoMapper.createRepoAccessLevelInfoFrom(
+                getAccessLevelInternal(repoRepository.findById(repoId).orElse(null))
+        );
     }
 
-    private RepoAccessLevel getAccessLevelInternal(long repoId) {
-        var repo = repoRepository.findById(repoId);
+    private RepoAccessLevel getAccessLevelInternal(Repo repo) {
         var user = userRepository.getCurrentUser();
 
-        if (repo.isEmpty())
+        if (repo == null)
             throw new RepositoryNotFoundException();
 
         if (user != null) {
-            var userAccess = repoUserAccessRepository.findByRepoAndUser(repo.get(), user);
+            var userAccess = repoUserAccessRepository.findByRepoAndUser(repo, user);
             if (userAccess.isPresent())
                 return userAccess.get().getAccessLevel();
         }
 
-        return repo.get().getDefaultAccessLevel();
+        return repo.getDefaultAccessLevel();
     }
 
     @Override
@@ -155,7 +163,7 @@ public class RepoServiceImpl implements RepoService {
     public RepoInfoResponse getRepoInfo(long repoId) {
         var repo = repoRepository.getReferenceById(repoId);
 
-        return repoMapper.createRepoInfoResponseFrom(repo, getAccessLevelInternal(repoId));
+        return repoMapper.createRepoInfoResponseFrom(repo, getAccessLevelInternal(repo));
     }
 
     @Override
@@ -244,6 +252,13 @@ public class RepoServiceImpl implements RepoService {
         var user = userRepository.getCurrentUser();
         GitCommit gitCommit;
 
+        var normalizedPath = PathNormalizer.normalize(request.getPath());
+        var dbExistingFile =
+                repoFileRepository.findByRepoAndPath(dbRepo, normalizedPath);
+
+        dbExistingFile.ifPresent(repoFile ->
+                ensureLocked(user, repoFile));
+
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
             gitCommit = gitRepo.newCommit()
                     .addFile(request.getPath(), request.getFileStream())
@@ -252,7 +267,9 @@ public class RepoServiceImpl implements RepoService {
                     .commit();
         }
 
-        var dbFile = createOrFindDbFile(dbRepo, request.getPath());
+        var dbFile = dbExistingFile.orElseGet(() ->
+                RepoFile.createFromModel(new RepoFileModel(dbRepo, normalizedPath, "")));
+
         if (request.getFileDescription() != null)
             dbFile.setDescription(request.getFileDescription());
 
@@ -277,6 +294,9 @@ public class RepoServiceImpl implements RepoService {
         }
         dbCommit = repoCommitRepository.save(dbCommit);
 
+        if (dbExistingFile.isPresent())
+            unlockFileInternal(dbFile);
+
         return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
 
@@ -287,6 +307,10 @@ public class RepoServiceImpl implements RepoService {
         var user = userRepository.getCurrentUser();
         CommitInfo commitInfo;
 
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, PathNormalizer.normalize(path));
+        dbFile.ifPresent(f ->
+                ensureNotLockedByAnotherUser(user, f));
+
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
             var gitCommit = gitRepo.newCommit()
                     .deleteFile(path)
@@ -296,7 +320,6 @@ public class RepoServiceImpl implements RepoService {
             commitInfo = repoMapper.createCommitInfoFrom(gitCommit, dbRepo);
         }
 
-        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, PathNormalizer.normalize(path));
         dbFile.ifPresent(repoFileRepository::delete);
 
         return commitInfo;
@@ -332,7 +355,7 @@ public class RepoServiceImpl implements RepoService {
     public FileTreeInfo listFiles(long repoId) {
         var dbRepo = repoRepository.getReferenceById(repoId);
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
-            return repoMapper.createFileTreeInfoFrom(gitRepo.listFiles());
+            return repoMapper.createFileTreeInfoFrom(dbRepo, gitRepo.listFiles());
         }
     }
 
@@ -447,7 +470,84 @@ public class RepoServiceImpl implements RepoService {
         return repoMapper.createCommitInfoFrom(gitCommit, dbCommit);
     }
 
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canCommit")
+    public void lockFile(long repoId, String path) {
+        if (!fileLockingProperties.isEnabled())
+            throw new OperationNotAllowedException();
 
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        var user = userRepository.getCurrentUser();
+
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            var fileInfo = gitRepo.getFileInfo(path, "HEAD");
+            if (fileInfo.getType().equals(GitFile.TYPE_DIRECTORY))
+                throw new TargetFileIsADirectoryException();
+        }
+
+        var dbFile = createOrFindDbFile(dbRepo, path);
+        var currentLock = repoFileLockRepository.findByFile(dbFile);
+        if (currentLock.isPresent()) {
+            if (!Objects.equals(currentLock.get().getUser().getId(), user.getId()))
+                throw new FileLockedByAnotherUserException();
+            return; // if already locked by current user just ignore
+        }
+        repoFileLockRepository.save(RepoFileLock.createFromModel(new RepoFileLockModel(dbFile, user)));
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canCommit")
+    public void unlockFile(long repoId, String path) {
+        if (!fileLockingProperties.isEnabled())
+            throw new OperationNotAllowedException();
+
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        var dbFile = repoFileRepository.findByRepoAndPath(dbRepo, PathNormalizer.normalize(path));
+        unlockFileInternal(dbFile.orElse(null));
+    }
+
+    private void unlockFileInternal(RepoFile file) {
+        if (!fileLockingProperties.isEnabled())
+            return;
+
+        if (file == null)
+            throw new FileNotLockedException();
+        var lock = repoFileLockRepository.findByFile(file);
+        if (lock.isEmpty())
+            throw new FileNotLockedException();
+
+        var user = userRepository.getCurrentUser();
+
+        if (!Objects.equals(lock.get().getUser().getId(), user.getId())
+                && !getAccessLevelInternal(file.getRepo()).isCanManage())
+            throw new FileLockedByAnotherUserException();
+
+        repoFileLockRepository.delete(lock.get());
+    }
+
+    private void ensureLocked(User user, RepoFile file) {
+        if (!fileLockingProperties.isEnabled())
+            return;
+
+        var lock = repoFileLockRepository.findByFile(file);
+        if (lock.isEmpty())
+            throw new FileNotLockedException();
+
+        if (!Objects.equals(lock.get().getUser().getId(), user.getId()))
+            throw new FileLockedByAnotherUserException();
+    }
+
+    private void ensureNotLockedByAnotherUser(User user, RepoFile file) {
+        if (!fileLockingProperties.isEnabled())
+            return;
+
+        var lock = repoFileLockRepository.findByFile(file);
+        if (lock.isEmpty())
+            return;
+
+        if (!Objects.equals(lock.get().getUser().getId(), user.getId()))
+            throw new FileLockedByAnotherUserException();
+    }
 
     private RepoFile createOrFindDbFile(Repo dbRepo, String path) {
         var normalizedPath = PathNormalizer.normalize(path);
