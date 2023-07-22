@@ -16,6 +16,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -114,6 +115,11 @@ public class RepoMapper {
                 authorInfo,
                 gitCommit.getWhen()
         );
+    }
+
+    public FileInfoShort createFileInfoShortFrom(RepoFile file) {
+        return new FileInfoShort(file.getPath(), file.getDescription(),
+                file.getTags().stream().map(RepoFileTag::getTag).sorted().collect(Collectors.toList()));
     }
 
     public CommitInfoShort createCommitInfoShortFrom(GitCommit commit) {

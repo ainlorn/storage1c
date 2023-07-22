@@ -8,7 +8,7 @@ import lombok.Value;
 import java.util.Set;
 
 @Value
-public class RepoSearchRequest {
+public class SearchRequest {
     @ValidTagSet
     @NotNull
     @Size(min = 1, max = 10)

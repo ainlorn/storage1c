@@ -1,7 +1,8 @@
 package com.msp31.storage1c.adapter.web.controller;
 
 import com.msp31.storage1c.adapter.web.annotation.ApiV1;
-import com.msp31.storage1c.domain.dto.request.RepoSearchRequest;
+import com.msp31.storage1c.domain.dto.request.SearchRequest;
+import com.msp31.storage1c.domain.dto.response.FileInfoShort;
 import com.msp31.storage1c.domain.dto.response.RepoInfo;
 import com.msp31.storage1c.domain.dto.response.ResponseModel;
 import com.msp31.storage1c.domain.dto.response.SearchResult;
@@ -11,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -27,7 +29,16 @@ public class SearchController {
      * Выполнить поиск репозиториев по всем заданным меткам
      */
     @PostMapping("/search/repos")
-    public ResponseModel<SearchResult<RepoInfo>> searchRepos(@Valid @RequestBody RepoSearchRequest request) {
+    public ResponseModel<SearchResult<RepoInfo>> searchRepos(@Valid @RequestBody SearchRequest request) {
         return ok(searchService.findPublicReposByAllTags(request));
+    }
+
+    /**
+     * Выполнить поиск файлов в репозитории по всем заданным меткам
+     */
+    @PostMapping("/repos/{id}/search/files")
+    public ResponseModel<SearchResult<FileInfoShort>> searchFilesInRepo(@PathVariable long id,
+                                                                        @Valid @RequestBody SearchRequest request) {
+        return ok(searchService.findFilesInRepoByAllTags(id, request));
     }
 }
