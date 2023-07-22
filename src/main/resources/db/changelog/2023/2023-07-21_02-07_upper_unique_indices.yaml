@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2023-07-21_01-06_tag_upper_indices
+      author: ainlorn
+      changes:
+        - dropIndex:
+            indexName: repository_tags__repo_id_tag__key
+        - createIndex:
+            indexName: repository_tags__repo_id_tag__key
+            tableName: repository_tags
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: repo_id
+              - column:
+                  computed: true
+                  name: upper(tag)
+        - dropIndex:
+            indexName: repository_file_tags__file_id_tag__key
+        - createIndex:
+            indexName: repository_file_tags__file_id_tag__key
+            tableName: repository_file_tags
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: file_id
+              - column:
+                  computed: true
+                  name: upper(tag)
+        - dropIndex:
+            indexName: repository_commit_tags__commit_id_tag__key
+        - createIndex:
+            indexName: repository_commit_tags__commit_id_tag__key
+            tableName: repository_commit_tags
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: commit_id
+              - column:
+                  computed: true
+                  name: upper(tag)

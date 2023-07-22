@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2023-07-21_01-06_tag_upper_indices
+      author: ainlorn
+      changes:
+        - createIndex:
+            tableName: repository_tags
+            indexName: repository_tags__tag_upper_index
+            clustered: false
+            columns:
+              - column:
+                  computed: true
+                  name: upper(tag)
+        - createIndex:
+            tableName: repository_file_tags
+            indexName: repository_file_tags__tag_upper_index
+            clustered: false
+            columns:
+              - column:
+                  computed: true
+                  name: upper(tag)
+        - createIndex:
+              tableName: repository_commit_tags
+              indexName: repository_commit_tags__tag_upper_index
+              clustered: false
+              columns:
+                - column:
+                    computed: true
+                    name: upper(tag)
