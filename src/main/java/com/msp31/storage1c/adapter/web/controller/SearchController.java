@@ -2,10 +2,7 @@ package com.msp31.storage1c.adapter.web.controller;
 
 import com.msp31.storage1c.adapter.web.annotation.ApiV1;
 import com.msp31.storage1c.domain.dto.request.SearchRequest;
-import com.msp31.storage1c.domain.dto.response.FileInfoShort;
-import com.msp31.storage1c.domain.dto.response.RepoInfo;
-import com.msp31.storage1c.domain.dto.response.ResponseModel;
-import com.msp31.storage1c.domain.dto.response.SearchResult;
+import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.service.SearchService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -40,5 +37,14 @@ public class SearchController {
     public ResponseModel<SearchResult<FileInfoShort>> searchFilesInRepo(@PathVariable long id,
                                                                         @Valid @RequestBody SearchRequest request) {
         return ok(searchService.findFilesInRepoByAllTags(id, request));
+    }
+
+    /**
+     * Выполнить поиск коммитов в репозитории по всем заданным меткам
+     */
+    @PostMapping("/repos/{id}/search/commits")
+    public ResponseModel<SearchResult<CommitInfo>> searchCommitsInRepo(@PathVariable long id,
+                                                                       @Valid @RequestBody SearchRequest request) {
+        return ok(searchService.findCommitsInRepoByAllTags(id, request));
     }
 }
