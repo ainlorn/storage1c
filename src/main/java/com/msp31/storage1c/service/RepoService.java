@@ -30,4 +30,5 @@ public interface RepoService {
     CommitInfo patchCommitInfo(long repoId, String rev, PatchCommitInfoRequest request);
     void lockFile(long repoId, String path);
     void unlockFile(long repoId, String path);
+    void deleteRepository(long repoId);
 }

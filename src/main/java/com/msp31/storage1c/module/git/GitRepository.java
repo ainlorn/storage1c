@@ -11,6 +11,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.util.FileUtils;
 
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -182,6 +183,14 @@ public class GitRepository implements AutoCloseable {
                 result.add(GitCommit.fromRevCommit(revCommit));
 ;           }
             return result;
+        });
+    }
+
+    public void delete() {
+        runWrapped(() -> {
+            var path = git.getRepository().getWorkTree();
+            close();
+            FileUtils.delete(path, FileUtils.RECURSIVE);
         });
     }
 

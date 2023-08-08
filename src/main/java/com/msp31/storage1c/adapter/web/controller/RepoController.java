@@ -246,4 +246,14 @@ public class RepoController {
         repoService.removeUserFromRepo(repoId, userId);
         return ok(repoService.getUsersForRepo(repoId));
     }
+
+    /**
+     * Удалить репозиторий
+     * @param repoId id репозитория
+     */
+    @DeleteMapping("/repos/{repoId}")
+    public ResponseModel<Object> deleteRepo(@PathVariable long repoId) {
+        repoService.deleteRepository(repoId);
+        return ok(null);
+    }
 }

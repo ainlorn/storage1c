@@ -496,6 +496,21 @@ public class RepoServiceImpl implements RepoService {
     }
 
     @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
+    public void deleteRepository(long repoId) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        var user = userRepository.getCurrentUser();
+
+        if (!Objects.equals(dbRepo.getOwner().getId(), user.getId()))
+            throw new AccessDeniedException(); // only owner can delete
+
+        var gitRepo = git.openRepository(dbRepo.getDirectoryName());
+        gitRepo.delete();
+
+        repoRepository.delete(dbRepo);
+    }
+
+    @Override
     @PreAuthorize("@repoService.getAccessLevel(#repoId).canCommit")
     public void unlockFile(long repoId, String path) {
         if (!fileLockingProperties.isEnabled())
