@@ -235,6 +235,14 @@ public class RepoServiceImpl implements RepoService {
     }
 
     @Override
+    public void addUserToRepo(long repoId, String username, String role) {
+        var user = userRepository.findByUsername(username)
+                .orElseGet(() -> userRepository.findByEmail(username)
+                        .orElseThrow(UserNotFoundException::new));
+        addUserToRepo(repoId, user.getId(), role);
+    }
+
+    @Override
     @PreAuthorize("@repoService.getAccessLevel(#repoId).canManage")
     public void removeUserFromRepo(long repoId, long userId) {
         var repo = repoRepository.getReferenceById(repoId);
@@ -245,6 +253,9 @@ public class RepoServiceImpl implements RepoService {
         var userAccess = repoUserAccessRepository.findByRepoAndUser(repo, targetUser.get());
         if (userAccess.isEmpty())
             throw new UserNotFoundException();
+
+        if (Objects.equals(targetUser.get().getId(), repo.getOwner().getId()))
+            throw new AccessDeniedException(); // repo owner can't be removed
 
         if (userAccess.get().getAccessLevel().isCanManage()
                 && !Objects.equals(currentUser.getId(), repo.getOwner().getId()))
