@@ -1,6 +1,7 @@
 package com.msp31.storage1c.adapter.web.controller;
 
 import com.msp31.storage1c.adapter.web.annotation.ApiV1;
+import com.msp31.storage1c.common.constant.Status;
 import com.msp31.storage1c.common.validation.constraint.ValidPath;
 import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
@@ -16,10 +17,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 import static com.msp31.storage1c.domain.dto.response.ResponseModel.ok;
 
@@ -241,10 +244,18 @@ public class RepoController {
      * @param id id репозитория
      */
     @PostMapping("/repos/{id}/users")
-    public ResponseModel<List<RepoUserAccessInfo>> addRepoUser(@PathVariable long id,
+    public ResponseEntity<ResponseModel<Object>> addRepoUser(@PathVariable long id,
                                                                @RequestBody @Valid AddUserToRepoRequest request) {
-        repoService.addUserToRepo(id, request.getUserId(), request.getRole());
-        return ok(repoService.getUsersForRepo(id));
+        if (request.getUserId() != null)
+            repoService.addUserToRepo(id, request.getUserId(), request.getRole());
+        else if (request.getUsername() != null)
+            repoService.addUserToRepo(id, request.getUsername(), request.getRole());
+        else
+            return ResponseEntity
+                    .status(Status.VALIDATION_ERROR.getHttpCode())
+                    .body(ResponseModel.withStatus(Status.VALIDATION_ERROR, new ValidationErrorResponse(Set.of("id", "username"))));
+
+        return ResponseEntity.ok(ok(repoService.getUsersForRepo(id)));
     }
 
     /**

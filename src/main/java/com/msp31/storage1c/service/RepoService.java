@@ -15,6 +15,7 @@ public interface RepoService {
     List<RepoInfo> getReposForUser(long userId);
     List<RepoInfo> getReposForCurrentUser();
     List<RepoUserAccessInfo> getUsersForRepo(long repoId);
+    void addUserToRepo(long repoId, String username, String role);
     void addUserToRepo(long repoId, long userId, String role);
     void removeUserFromRepo(long repoId, long userId);
     CommitInfo pushFile(PushFileRequest request);

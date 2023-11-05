@@ -7,8 +7,9 @@ import lombok.Value;
 
 @Value
 public class AddUserToRepoRequest {
-    @NotNull
     Long userId;
+
+    String username;
 
     @NotEmpty
     @AsciiString
