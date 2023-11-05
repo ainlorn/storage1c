@@ -4,6 +4,7 @@ import com.msp31.storage1c.adapter.repository.*;
 import com.msp31.storage1c.common.exception.*;
 import com.msp31.storage1c.config.properties.FileLockingProperties;
 import com.msp31.storage1c.config.properties.GitProperties;
+import com.msp31.storage1c.config.properties.UnpackProperties;
 import com.msp31.storage1c.domain.dto.request.*;
 import com.msp31.storage1c.domain.dto.response.*;
 import com.msp31.storage1c.domain.entity.account.User;
@@ -22,17 +23,24 @@ import com.msp31.storage1c.utils.PathNormalizer;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.eclipse.jgit.util.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.OutputStream;
+import java.io.*;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service("repoService")
 @Transactional
@@ -43,6 +51,7 @@ public class RepoServiceImpl implements RepoService {
     static final String viewAccessLevel = "VIEWER";
 
     GitProperties gitProperties;
+    UnpackProperties unpackProperties;
     FileLockingProperties fileLockingProperties;
     UserRepository userRepository;
     UserMapper userMapper;
@@ -331,9 +340,7 @@ public class RepoServiceImpl implements RepoService {
         var dbRepo = repoRepository.getReferenceById(repoId);
         try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
             var blobId = gitRepo.getBlobIdForFile(path, rev);
-            var key = makeBlobKey(repoId, blobId);
-            var url = makeBlobDownloadUrl(repoId, key, path);
-            return new FileDownloadInfo(url);
+            return makeFileDownloadInfo(repoId, blobId, path);
         }
     }
 
@@ -347,6 +354,44 @@ public class RepoServiceImpl implements RepoService {
                 return;
 
             gitRepo.writeBlobToOutputStream(blobId, outputStream);
+        }
+    }
+
+    @Override
+    @PreAuthorize("@repoService.getAccessLevel(#repoId).canView")
+    public void writeBlobZipToOutputStream(long repoId, String blobKey, OutputStream outputStream) {
+        var dbRepo = repoRepository.getReferenceById(repoId);
+        try (var gitRepo = git.openRepository(dbRepo.getDirectoryName())) {
+            var blobId = blobKey.substring(0, blobKey.indexOf(':'));
+            if (!blobKey.equals(makeBlobKey(repoId, blobId)))
+                return;
+
+            try {
+                var tempName = String.valueOf(System.currentTimeMillis());
+                var cfFile = Path.of(unpackProperties.getRoot(), tempName + ".cf").toFile();
+                var unpackedDir = Path.of(unpackProperties.getRoot(), tempName).toFile();
+
+                var cfOs = new FileOutputStream(cfFile);
+                gitRepo.writeBlobToOutputStream(blobId, cfOs);
+                cfOs.close();
+
+                unpackedDir.mkdir();
+                var process = new ProcessBuilder(
+                        unpackProperties.getV8unpackPath(),
+                        "-E",
+                        cfFile.getAbsolutePath(),
+                        unpackedDir.getAbsolutePath()
+                ).start();
+                process.waitFor();
+                if (process.exitValue() != 0)
+                    throw new RuntimeException("v8unpack failed with exit code " + process.exitValue());
+
+                zip(unpackedDir, outputStream);
+                cfFile.delete();
+                FileUtils.delete(unpackedDir, FileUtils.RECURSIVE);
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -594,12 +639,81 @@ public class RepoServiceImpl implements RepoService {
         );
     }
 
+    private String makeBlobZipDownloadUrl(long repoId, String blobKey, String filePath) {
+        return gitProperties.getZipDownloadUrl().formatted(
+                repoId,
+                blobKey,
+                filePath.substring(filePath.lastIndexOf('/') + 1)
+        );
+    }
+
     private FileDownloadInfo makeFileDownloadInfo(long repoId, String blobId, String path) {
         if (blobId == null)
             return null;
 
         var blobKey = makeBlobKey(repoId, blobId);
         var downloadUrl = makeBlobDownloadUrl(repoId, blobKey, path);
-        return new FileDownloadInfo(downloadUrl);
+
+        String zipUrl = null;
+        if (path.endsWith(".epf") || path.endsWith(".erf") || path.endsWith(".cf"))
+            zipUrl = makeBlobZipDownloadUrl(repoId, blobKey, path);
+
+        return new FileDownloadInfo(downloadUrl, zipUrl);
+    }
+
+    public static void zip(File directory, OutputStream out) throws IOException {
+        URI base = directory.toURI();
+        Deque<File> queue = new LinkedList<File>();
+        queue.push(directory);
+        Closeable res = out;
+        try {
+            ZipOutputStream zout = new ZipOutputStream(out);
+            res = zout;
+            while (!queue.isEmpty()) {
+                directory = queue.pop();
+                for (File kid : directory.listFiles()) {
+                    String name = base.relativize(kid.toURI()).getPath();
+                    if (kid.isDirectory()) {
+                        queue.push(kid);
+                        name = name.endsWith("/") ? name : name + "/";
+                        zout.putNextEntry(new ZipEntry(name));
+                    } else {
+                        zout.putNextEntry(new ZipEntry(name));
+                        copy(kid, zout);
+                        zout.closeEntry();
+                    }
+                }
+            }
+        } finally {
+            res.close();
+        }
+    }
+    private static void copy(InputStream in, OutputStream out) throws IOException {
+        byte[] buffer = new byte[1024];
+        while (true) {
+            int readCount = in.read(buffer);
+            if (readCount < 0) {
+                break;
+            }
+            out.write(buffer, 0, readCount);
+        }
+    }
+
+    private static void copy(File file, OutputStream out) throws IOException {
+        InputStream in = new FileInputStream(file);
+        try {
+            copy(in, out);
+        } finally {
+            in.close();
+        }
+    }
+
+    private static void copy(InputStream in, File file) throws IOException {
+        OutputStream out = new FileOutputStream(file);
+        try {
+            copy(in, out);
+        } finally {
+            out.close();
+        }
     }
 }

@@ -215,6 +215,18 @@ public class RepoController {
                 .body(responseBody);
     }
 
+    @GetMapping(path = "/repos/{id}/cfzip/{key:[0-9a-f]+:[0-9a-f]+}")
+    public ResponseEntity<StreamingResponseBody> downloadZip(@PathVariable long id,
+                                                              @PathVariable String key,
+                                                              @RequestParam(defaultValue = "blob.bin") String fname) {
+        StreamingResponseBody responseBody = outputStream -> repoService.writeBlobZipToOutputStream(id, key, outputStream);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fname + ".zip")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(responseBody);
+    }
+
     /**
      * Получить список пользователей, имеющих доступ к репозиторию
      * @param id id репозитория

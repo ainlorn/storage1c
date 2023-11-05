@@ -8,13 +8,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationProperties(prefix = "storage1c.git")
+@ConfigurationProperties(prefix = "storage1c.unpack")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
-public class GitProperties {
+public class UnpackProperties {
     String root;
-    String fileDownloadUrl;
-    String zipDownloadUrl;
-    String fileDownloadKey;
+    String v8unpackPath;
 }
