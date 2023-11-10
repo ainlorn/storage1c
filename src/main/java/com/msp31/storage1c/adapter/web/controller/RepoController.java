@@ -11,16 +11,17 @@ import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
@@ -206,28 +207,33 @@ public class RepoController {
         return ok(repoService.deleteFile(id, path));
     }
 
+    private ResponseEntity<StreamingResponseBody> buildStreamingResponseEntity(StreamingResponseBody responseBody,
+                                                                               String filename) {
+        var httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        httpHeaders.setContentDisposition(
+                ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build());
+        return ResponseEntity.ok().headers(httpHeaders).body(responseBody);
+    }
+
     @GetMapping(path = "/repos/{id}/blobs/{key:[0-9a-f]+:[0-9a-f]+}")
     public ResponseEntity<StreamingResponseBody> downloadBlob(@PathVariable long id,
                                                               @PathVariable String key,
                                                               @RequestParam(defaultValue = "blob.bin") String fname) {
-        StreamingResponseBody responseBody = outputStream -> repoService.writeBlobToOutputStream(id, key, outputStream);
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fname)
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(responseBody);
+        return buildStreamingResponseEntity(
+                outputStream -> repoService.writeBlobToOutputStream(id, key, outputStream),
+                fname
+        );
     }
 
     @GetMapping(path = "/repos/{id}/cfzip/{key:[0-9a-f]+:[0-9a-f]+}")
     public ResponseEntity<StreamingResponseBody> downloadZip(@PathVariable long id,
                                                               @PathVariable String key,
                                                               @RequestParam(defaultValue = "blob.bin") String fname) {
-        StreamingResponseBody responseBody = outputStream -> repoService.writeBlobZipToOutputStream(id, key, outputStream);
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fname + ".zip")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(responseBody);
+        return buildStreamingResponseEntity(
+                outputStream -> repoService.writeBlobZipToOutputStream(id, key, outputStream),
+                fname + ".zip"
+        );
     }
 
     /**
