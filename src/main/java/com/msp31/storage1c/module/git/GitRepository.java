@@ -11,6 +11,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.util.FileUtils;
 
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -29,9 +30,8 @@ public class GitRepository implements AutoCloseable {
         return new GitCommitBuilder(git);
     }
 
-    public String getBlobIdForFile(String path, String rev) {
+    private RevCommit findCommitById(String rev) {
         return runWrapped(() -> {
-            var relPath = GitUtils.normalizeRelPath(path);
             var repository = git.getRepository();
             var commitId = repository.resolve(rev + "^0");
             if (commitId == null)
@@ -40,6 +40,23 @@ public class GitRepository implements AutoCloseable {
             var revWalk = new RevWalk(repository);
             var revCommit = revWalk.parseCommit(commitId);
             revWalk.close();
+
+            return revCommit;
+        });
+    }
+
+    public GitCommit getCommit(String rev) {
+        return runWrapped(() -> {
+            var revCommit = findCommitById(rev);
+            return GitCommit.fromRevCommit(revCommit);
+        });
+    }
+
+    public String getBlobIdForFile(String path, String rev) {
+        return runWrapped(() -> {
+            var relPath = GitUtils.normalizeRelPath(path);
+            var repository = git.getRepository();
+            var revCommit = findCommitById(rev);
 
             var revTree = revCommit.getTree();
             var treeWalk = TreeWalk.forPath(repository, relPath, revTree);
@@ -50,6 +67,19 @@ public class GitRepository implements AutoCloseable {
 
             var blobId = treeWalk.getObjectId(0);
             return blobId.getName();
+        });
+    }
+
+    public GitFile getFileInfo(String path, String rev) {
+        return runWrapped(() -> {
+            var relPath = GitUtils.normalizeRelPath(path);
+            String blobId;
+            try {
+                blobId = getBlobIdForFile(path, rev);
+            } catch (GitTargetFileIsADirectoryException e) {
+                return new GitFile(relPath, GitFile.TYPE_DIRECTORY, null);
+            }
+            return new GitFile(relPath, GitFile.TYPE_FILE, blobId);
         });
     }
 
@@ -88,12 +118,12 @@ public class GitRepository implements AutoCloseable {
                 var slashIdx = path.lastIndexOf('/');
                 var parentPath = path.substring(0, Math.max(0, slashIdx));
                 var fileName = path.substring(slashIdx + 1);
-                GitFile file;
+                GitFileTree.File file;
                 if (treeWalk.isSubtree()) {
                     treeWalk.enterSubtree();
-                    file = GitFile.newDirectory(fileName, null);
+                    file = GitFileTree.File.newDirectory(fileName, null);
                 } else {
-                    file = GitFile.newFile(fileName, null);
+                    file = GitFileTree.File.newFile(fileName, null);
                     allFiles.add(path);
                 }
                 result.findByPath(parentPath).getFiles().put(fileName, file);
@@ -136,6 +166,31 @@ public class GitRepository implements AutoCloseable {
                 return GitCommit.fromRevCommit(revCommit);
             }
             return null;
+        });
+    }
+
+    public List<GitCommit> listCommitsForFile(String path) {
+        if (path.startsWith("/"))
+            path = path.substring(1);
+
+        String finalPath = path;
+        return runWrapped(() -> {
+            var repository = git.getRepository();
+            var head = repository.resolve("HEAD^0");
+            var iterable = git.log().add(head).addPath(finalPath).call();
+            var result = new ArrayList<GitCommit>();
+            for (RevCommit revCommit : iterable) {
+                result.add(GitCommit.fromRevCommit(revCommit));
+;           }
+            return result;
+        });
+    }
+
+    public void delete() {
+        runWrapped(() -> {
+            var path = git.getRepository().getWorkTree();
+            close();
+            FileUtils.delete(path, FileUtils.RECURSIVE);
         });
     }
 

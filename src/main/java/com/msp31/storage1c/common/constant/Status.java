@@ -16,6 +16,7 @@ public enum Status {
     MISSING_BODY(3, 400, "Отсутствует тело запроса"),
     ACCESS_DENIED(4, 403, "Доступ к ресурсу запрещён"),
     UNAUTHORIZED(5, 401, "Для доступа к этому ресурсу необходимо войти"),
+    OPERATION_NOT_ALLOWED(6, 400, "Запрещённая операция"),
 
     // user account
     EMAIL_IN_USE(100, 400, "Адрес электронной почты уже используется"),
@@ -32,7 +33,10 @@ public enum Status {
     TARGET_FILE_IS_A_DIRECTORY(205, 400, "Целевой файл является директорией"),
     NEW_VERSION_IS_IDENTICAL_TO_PREVIOUS(206, 400, "Новая версия файла идентична предыдущей"),
     FILE_NOT_FOUND(207, 404, "Файл не найден"),
-    COMMIT_NOT_FOUND(208, 404, "Коммит не найден");
+    COMMIT_NOT_FOUND(208, 404, "Коммит не найден"),
+    INVALID_TAG_LIST(209, 400, "Некорректный список меток"),
+    FILE_NOT_LOCKED(210, 400, "Файл не захвачен"),
+    FILE_LOCKED_BY_ANOTHER_USER(211, 400, "Файл захвачен другим пользователем");
 
     int code;
     int httpCode;

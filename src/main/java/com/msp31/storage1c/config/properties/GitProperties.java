@@ -15,5 +15,6 @@ import org.springframework.context.annotation.Configuration;
 public class GitProperties {
     String root;
     String fileDownloadUrl;
+    String zipDownloadUrl;
     String fileDownloadKey;
 }

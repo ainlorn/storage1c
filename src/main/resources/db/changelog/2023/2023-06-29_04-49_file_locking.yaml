@@ -1,0 +1,53 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2023-06-29_04-49_file_locking
+      author: ainlorn
+      changes:
+        - createTable:
+            tableName: repository_file_locks
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: file_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: locked_on
+                  type: 'timestamp with time zone'
+                  defaultValueComputed: "CURRENT_TIMESTAMP"
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: repository_file_locks
+            baseColumnNames: file_id
+            constraintName: repository_file_locks_file_id__repository_files_id__fk
+            onDelete: CASCADE
+            referencedTableName: repository_files
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: repository_file_locks
+            baseColumnNames: user_id
+            constraintName: repository_file_locks_user_id__users_id__fk
+            onDelete: CASCADE
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            indexName: repository_file_locks__file_id__index
+            tableName: repository_file_locks
+            clustered: false
+            unique: true
+            columns:
+              - column:
+                  name: file_id

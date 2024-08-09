@@ -30,6 +30,7 @@ dependencies {
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.5.0.202303070854-r")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("com.github.therapi:therapi-runtime-javadoc-scribe:0.15.0")
     annotationProcessor("org.projectlombok:lombok")
